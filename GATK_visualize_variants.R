@@ -201,6 +201,8 @@ rownames(annotation_data) = colnames(gt_matrix)
 
 for (strain in strains) {
   head(gt_matrix)
+  
+  ## analysis for all SNPs combined
   gt_matrix_strain = gt_matrix[,grep(strain, colnames(gt_matrix))]
   gt_matrix_strain[is.na(gt_matrix_strain)] = 0
   gt_matrix_strain_cleaned <- gt_matrix_strain[!apply(gt_matrix_strain, 1, function(row) length(unique(row)) == 1), ]
@@ -217,6 +219,7 @@ for (strain in strains) {
            annotation_col = annotation_data)
   p_heatmaps[[strain]] = p
   
+  ## for SNPs with an impact on the CDS
   gt_impact_matrix_strain = gt_impact_matrix[,grep(strain, colnames(gt_impact_matrix))]
   gt_impact_matrix_strain[is.na(gt_impact_matrix_strain)] = 0
   gt_impact_matrix_strain_cleaned <- gt_impact_matrix_strain[!apply(gt_impact_matrix_strain, 1, function(row) length(unique(row)) == 1), ]
@@ -277,6 +280,63 @@ grid.arrange(p_heatmaps_impact_homo[["BPK026"]]$gtable,
              ncol = 3)
 
 p_heatmaps[['BPK026']]
+
+
+## overlap of SNPs between different strains
+
+## intialize empty dataframe
+p_overlap = list()
+
+for (strain in strains) {
+
+  ## for SNPs with an impact on the CDS
+  gt_impact_matrix_strain = gt_impact_matrix[,grep(strain, colnames(gt_impact_matrix))]
+  gt_impact_matrix_strain[is.na(gt_impact_matrix_strain)] = 0
+  gt_impact_matrix_strain_cleaned <- gt_impact_matrix_strain[!apply(gt_impact_matrix_strain, 1, function(row) length(unique(row)) == 1), ]
+  
+  sample_names = colnames(gt_impact_matrix_strain_cleaned)
+  snp_overlap = data.frame(matrix(0, nrow = length(sample_names), ncol = length(sample_names)))
+  colnames(snp_overlap) = sample_names
+  rownames(snp_overlap) = sample_names
+  
+  for (sample_nr in 1:length(sample_names)) {
+    for (sample_nr2 in 1:length(sample_names)) {
+      sample1 = sample_names[sample_nr]
+      sample2 = sample_names[sample_nr2]
+      overlap = sum(gt_impact_matrix_strain_cleaned[,sample1] > 0 & gt_impact_matrix_strain_cleaned[,sample2] > 0)
+      snp_overlap[sample1, sample2] = overlap
+    }
+  }
+
+  
+  p = pheatmap(snp_overlap,
+                      color = rev(inferno(20)),
+                      fontsize_row = 2,
+                      show_rownames = FALSE,
+                      cluster_cols = FALSE,
+                      cluster_rows = FALSE,
+                      treeheight_row = FALSE,
+                      treeheight_col = FALSE,
+                      display_numbers = TRUE,
+                      number_format = "%.0f",
+                      fontsize_number = 18,
+                      number_color = "white",
+                      main = strain)
+             
+                    
+                      
+  p_overlap[[strain]] = p
+  
+  
+}
+
+grid.arrange(p_overlap[["BPK026"]]$gtable, 
+             p_overlap[["BPK275"]]$gtable, 
+             p_overlap[["BPK080"]]$gtable, 
+             p_overlap[["BPK085"]]$gtable, 
+             p_overlap[["BPK282"]]$gtable, 
+             p_overlap[["BPK294"]]$gtable, 
+             ncol = 3)
 
 ####### BELOW NOT (YET?) USED FOR Q WGS ######
 
