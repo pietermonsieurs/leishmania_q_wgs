@@ -130,54 +130,43 @@ calculate_somy_difference_count = function(somy_data, somy_ref) {
 #### parameter settings #### 
 
 
-# bwa_dir = '/Users/pmonsieurs/programming/leishmania_susl/results/bwa_2022/'
-# bwa_dir = '/Users/pmonsieurs/programming/leishmania_susl/results/bwa_tropica_clinical/'
-bwa_dir = '/Users/pmonsieurs/programming/leishmania_susl/results/bwa_20230116/'
+bwa_dir = '/Users/pmonsieurs/programming/leishmania_q_wgs/results/somy/'
 setwd(bwa_dir)
-# bg_files <- list.files(pattern = "bin10000.cured.bedgraph")
-bg_files <- list.files(pattern = "bin2000.bedgraph")
+bg_files <- list.files(pattern = "bin10000.bedgraph")
 bg_files
 
 
-## create different subset of bg_file
-bg_files_sub = bg_files[grep("sWGA.Ldon.Mix01", bg_files)]
-bg_files_sub = bg_files[grep("sWGA.Ldon.Mix006", bg_files)]
-bg_files_sub = bg_files[grep("SuSL.Laeth", bg_files)]
-
-bg_files_sub = bg_files[grep("SuSL.Ldon", bg_files)]
-bg_files_sub = bg_files_sub[-grep("Human", bg_files_sub)]
-
-bg_files_sub = bg_files[grep("SuSL.Lbraz", bg_files)]
-
-bg_files_sub = bg_files[grep("SuSL.Ltrop", bg_files)]
-bg_files_sub = bg_files_sub[grep("\\.F", bg_files_sub)]
-
-bg_files_sub = bg_files_sub[grep("Mix", bg_files_sub)]
-bg_files_sub = bg_files_sub[-grep("Ampure|FPPE", bg_files_sub)]
-
-
-bg_files_sub = bg_files[grep("Ampure|FPPE", bg_files)]
-
-bg_files_sub = bg_files[grep("FJ2002|FJ2008", bg_files)]
-
-
-## different subset of bg files in a directory with 
-## a mixture of different species
-bg_files_sub = bg_files[grep("022|023|024", bg_files)]
-bg_files_sub
 
 p_combined = plot_layout(ncol = 5)
 p_combined = plot_layout(ncol = 1)
 
 
-#### Ldon code ####
+## read in meta data
+meta_data_file = '/Users/pmonsieurs/Library/CloudStorage/OneDrive-ITG/leishmania_q_wgs/data/WGS_Samples_DataBase.xlsx'
+meta_data = read.xlsx(meta_data_file, startRow = 2, sheet = "Data_base")
+meta_data$ID_code_short = gsub("106214-001-", "", meta_data$ID_code)
+meta_data$sample_name = paste0(meta_data$strain, "_", meta_data$PAT, "_", meta_data$Replicate)
 
+strains = unique(meta_data$strain)
+plot_list = vector("list", length(strains))
+names(plot_list) = strains
+
+
+
+somy_plot_df <- data.frame(matrix(ncol = 0, nrow = 36))
+sample_names = c()
 plot_count = 0
-for (bg_file in bg_files_sub) {
+
+for (bg_file in bg_files) {
   ## extract the sample name
-  sample_name = gsub(".mapq30.removedups.proper_paired.deeptools.bin10000.cured.bedgraph", "", bg_file)
+  sample_name = gsub(".mapq30.removedups.proper_paired.deeptools.bin10000.bedgraph", "", bg_file)
   print(sample_name)
+  sample_names = c(sample_names, sample_name)
   plot_count = plot_count + 1
+  
+  ## get the strain information
+  strain = meta_data[match(sample_name, meta_data$ID_code_short),]$strain
+  sample_name_print = meta_data[match(sample_name, meta_data$ID_code_short),]$sample_name
   
   ## set the CPM values
   cpm = read.csv(bg_file, header=FALSE, sep="\t")
@@ -213,7 +202,7 @@ for (bg_file in bg_files_sub) {
   }
   
   cpm$raw_somy = 2*cpm[,'cpm']/median_cov
-  plot_title = paste0(sample_name)
+  plot_title = paste0(sample_name_print)
   # make_boxplot(cpm_sub, 'raw_somy', 5, plot_title)
   somy_df$somy_raw = calculate_somy(cpm,'raw_somy')
   # asd_raw = calculate_average_somy_deviation(somy_df$somy_raw, somy_ref[, strain])
@@ -223,10 +212,7 @@ for (bg_file in bg_files_sub) {
   #### local correction ###
   
   # calculate the chromosome based on the flanking regions. 
-  
   flanking = 7
-  # somy_values = c()
-  # somy_col_name = 'cov'
   chroms =  unique(cpm$chr)[1:36]
   cpm$somy_local = NA
   somy_col_name = 'cpm'
@@ -245,53 +231,90 @@ for (bg_file in bg_files_sub) {
     # print(median(somy_chrom_local))
     somy_values = c(somy_values, median(somy_chrom_local))
   }
-  # print(somy_values)
+  print(somy_values)
+  somy_plot_df = cbind(somy_plot_df, somy_values)
   
-  # plot_title = meta_data$print_name[plot_count]
-  
+
   ## create boxplot and merge the boxplot with the overall patchwork 
-  ## object to make summary plot
-  # somy_truth = somy_ref[,c('chrom',strain)]
-  # colnames(somy_truth) = c('chrom', 'somy')
+  ## object to make summary plot. Do this on a per-strain premesis
   p = make_boxplot(cpm, 'somy_local', somy_truth, 5, plot_title)
-  if (plot_count == 1) {
-    p_combined = p
-  }else{
-    p_combined = p_combined + p
+  
+  if (is.null(plot_list[[strain]])) {
+    plot_list[[strain]] = p
+   }else{
+     plot_list[[strain]] = plot_list[[strain]] + p
   }
-  
-  ## calculate the statistics on the variation on the somy values
-  somy_df$somy_local = somy_values
-  # stats[sample_name, 3:ncol(stats)] = somy_values - somy_ref[, strain]
-  # stats[sample_name, 3:ncol(stats)] = somy_values 
-  # asd_localsomy = calculate_average_somy_deviation(somy_df$somy_local, somy_ref[, strain])
-  # sdc_localsomy = calculate_somy_difference_count(somy_df$somy_local, somy_ref[,strain])
-  
-  # stats[rownames(stats) == sample_name,1:2] = c(sdc_localsomy, asd_localsomy)
-  # if (plot_count > 1) {
-  #   break
-  # }
+}
+rownames(somy_plot_df) = unique(cpm$chrom)
+colnames(somy_plot_df) = sample_names
+head(somy_plot_df)
+
+## make boxplot per sample and create one output per strain containing 
+## in total 6 samples
+for (strain in strains) {
+  boxplot_file = paste0(bwa_dir, 'boxplots_somy_', strain, '.png')
+  ggsave(boxplot_file, 
+         plot = plot_list[[strain]], 
+         limitsize = FALSE,
+         width = 16,
+         height = 9)
 }
 
-p_combined + plot_layout(ncol = 1)
-
-nr_of_columns = 4
-p_combined = p_combined + plot_layout(ncol = 4)
-
-unit = 6
-width = nr_of_columns * unit
-height = unit * ceiling(nrow(stats)/3)
-# height=unit
-
-boxplot_file = paste0(results_dir, 'boxplots_combined.png')
-ggsave(boxplot_file, 
-       p_combined, 
-       width=width,
-       height=height,
-       limitsize = FALSE)
 
 
-## create heatmap with the difference between the predicted and the actual
+## create a pheatmap of the somy values overall
+breaks = seq(0.5,6.5,1)
+
+## read in meta data
+meta_data_file = '/Users/pmonsieurs/Library/CloudStorage/OneDrive-ITG/leishmania_q_wgs/data/WGS_Samples_DataBase.xlsx'
+meta_data = read.xlsx(meta_data_file, startRow = 2, sheet = "Data_base")
+meta_data$ID_code_short = gsub("106214-001-", "", meta_data$ID_code)
+meta_data$sample_name = paste0(meta_data$strain, "_", meta_data$PAT, "_", meta_data$Replicate)
+meta_data_sorted = meta_data[match(colnames(somy_plot_df), meta_data$ID_code_short),]
+colnames(somy_plot_df) = meta_data_sorted$sample_name
+
+## add annotation data
+head(meta_data)
+annotation_data = meta_data[,c('strain', 'PAT')]
+rownames(annotation_data) = colnames(somy_plot_df)
+
+# pheatmap(stats[,3:ncol(stats)],
+pheatmap(somy_plot_df,
+         cluster_rows=TRUE, 
+         cluster_cols=TRUE,
+         # breaks=breaks,
+         # color=colorRampPalette(rev(brewer.pal(n = 10, name = "RdYlBu")))(length(breaks)),
+         annotation_col = annotation_data)
+
+plot_list = vector("list", length(strains))
+for (strain in strains) {
+  somy_plot_sub = somy_plot_df[, grep(strain, colnames(somy_plot_df))]
+  p = pheatmap(somy_plot_sub,
+           cluster_rows=FALSE, 
+           cluster_cols=FALSE,
+           breaks=breaks,
+           color=colorRampPalette(rev(brewer.pal(n = 10, name = "RdYlBu")))(length(breaks)),
+           annotation_col = annotation_data,
+           display_numbers = TRUE,
+           fontsize_number = 9)
+  
+  output_file = paste0(bwa_dir, 'heatmap_somy_', strain, '.png')
+  ggsave(filename = output_file, plot = p)
+  
+}
+
+
+# ,
+#          labels_row = gsub(" Leishmania DNA", "", stats_merged$print_name),
+#          labels_col = paste0(colnames(stats_merged)[4:39], "     ")) ## add spaces to increase margin
+# setHook("grid.newpage", NULL, "replace")
+# grid.text("Chromosome", x=0.40, y=0.03, gp=gpar(fontsize=16, fontface = "bold"))
+
+
+
+
+
+## create heatmap witsh the difference between the predicted and the actual
 ## somy value. We have to remove the control samples here
 
 stats_merged = merge(stats, meta_data, by.x=0, by.y='Code.GenomeScan')
