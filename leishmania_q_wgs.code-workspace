@@ -1,0 +1,11 @@
+{
+    "folders": [
+		{
+			"path": "."
+		},
+		{
+			"name": "SSH FS - calcua_leishmania_q_wgs",
+			"uri": "ssh://calcua_leishmania_q_wgs/user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/bin"
+		}
+	]
+}

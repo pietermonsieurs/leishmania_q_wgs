@@ -12,13 +12,23 @@ export gsport=/user/antwerpen/205/vsc20587/data/software/python_lib/bin/gsport
 
 
 ## 36 WGS samples from Allison on quiescence
-cd /user/antwerpen/205/vsc20587/aitg_data/jcdujardin/LeishQ_WGS_allison_20240904/
+# cd /user/antwerpen/205/vsc20587/aitg_data/jcdujardin/LeishQ_WGS_allison_20240904/
 
 ## download all raw data from the project, including the md5checksum file
-$gsport -p 106214 -l ## list all files and see whether recursive needed
-$gsport -p 106214 -a -t 2
+# $gsport -p 106214 -l ## list all files and see whether recursive needed
+# $gsport -p 106214 -a -t 2
+
+
+# calculate the md5sum from the downloaded data
+# md5sum -c checksums.md5
+
+cd /user/antwerpen/205/vsc20587/aitg_data/jcdujardin/LeishQ_WGS_allison_20240927/
+
+## download all raw data from the second batch of the of the 
+## genomes, i.e. comng from the yeti strains
+$gsport -p 106266 -l ## list all files and see whether recursive needed
+$gsport -p 106266 -a -t 28
 
 
 # calculate the md5sum from the downloaded data
 md5sum -c checksums.md5
-
