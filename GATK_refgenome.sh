@@ -24,6 +24,11 @@ vcf_file=$(echo $bam_file | sed -e 's/.mapq30.removedups.proper_paired.bam$/.gat
 gatk HaplotypeCaller -R $ref_genome -I $bam_file -O $vcf_file -ERC GVCF --native-pair-hmm-threads $threads
 
 
-## run for all bam files in the Somalileish folder
+## run for all bam files in the Q WGS folder
 # cd /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/results/bwa/
 # for bam_file in ${PWD}/*paired.bam; do sbatch --export=bam_file=${bam_file} /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/bin/GATK_refgenome.sh; done
+
+## also for the batch of 12 Yeti samples that was provided at 
+## a later stage
+# cd /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/results/bwa/
+# for bam_file in ${PWD}/*Yeti*paired.bam; do sbatch --export=bam_file=${bam_file} /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/bin/GATK_refgenome.sh; done

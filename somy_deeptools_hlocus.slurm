@@ -38,8 +38,8 @@ samtools index $bam_file
 
 ## parameters for running & creating of name for output
 threads=14
-bin_size=10000
-output_file=${bam_file/.bam/.deeptools.bin${bin_size}.bedgraph}
+bin_size=100
+output_file=${bam_file/.bam/.deeptools.Ld23.bin${bin_size}.bedgraph}
 # output_file="${output_file##*/}"
 
 # output_dir=/user/antwerpen/205/vsc20587/scratch/leishmania_susl/results/bwa_elife/hlocus/
@@ -53,7 +53,8 @@ $bamcoverage_bin \
     --outFileFormat bedgraph \
     --binSize $bin_size \
     --normalizeUsing CPM \
-    --numberOfProcessors $threads
+    --numberOfProcessors $threads \
+    --region Ld23
     # --skipNonCoveredRegions 
 
 ## run for all bam-files
@@ -62,4 +63,4 @@ $bamcoverage_bin \
 # vi bam_files.csv ## add header "bam_file"
 # echo $PWD/bam_files.csv
 # module load atools
-# sbatch --array $(arange --no_sniffer --data /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/results/bwa/bam_files.csv) /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/bin/somy_deeptools.slurm
+# sbatch --array $(arange --no_sniffer --data /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/results/bwa/bam_files.csv) /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/bin/somy_deeptools_hlocus.slurm

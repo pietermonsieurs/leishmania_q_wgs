@@ -78,3 +78,6 @@ samtools flagstat ${bam_file_prefix}.mapq${mapq_cutoff}.removedups.proper_paired
 # cd /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/data/fastq/
 # for fastq_file_R1 in  *_R1.fastq.gz; do sbatch --export=fastq_file_R1=${PWD}/${fastq_file_R1} /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/bin/bwa_parallel.slurm; done
 
+## run for the second batch of samples - Yeti samples - of Allison
+# cd /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/data/fastq/
+# for fastq_file_R1 in *_Yeti_R1.fastq.gz; do sbatch --export=fastq_file_R1=${PWD}/${fastq_file_R1} /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/bin/bwa_parallel.slurm; done

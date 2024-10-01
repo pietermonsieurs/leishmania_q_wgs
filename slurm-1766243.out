@@ -1,0 +1,26 @@
+/apps/antwerpen/broadwell/centos8/Python/3.8.3-intel-2020a/easybuild/python
+[login] Opening session...
+[login] Get login page
+Username: Traceback (most recent call last):
+  File "/user/antwerpen/205/vsc20587/data/software/python_lib/bin/gsport", line 8, in <module>
+    sys.exit(main())
+  File "/data/antwerpen/205/vsc20587/software/python_lib/lib/python3.8/site-packages/gsport.py", line 447, in main
+    session = Session(options)
+  File "/data/antwerpen/205/vsc20587/software/python_lib/lib/python3.8/site-packages/gsport.py", line 176, in __init__
+    self.login()
+  File "/data/antwerpen/205/vsc20587/software/python_lib/lib/python3.8/site-packages/gsport.py", line 195, in login
+    username = input("Username: ")
+EOFError: EOF when reading a line
+[login] Opening session...
+[login] Get login page
+Username: Traceback (most recent call last):
+  File "/user/antwerpen/205/vsc20587/data/software/python_lib/bin/gsport", line 8, in <module>
+    sys.exit(main())
+  File "/data/antwerpen/205/vsc20587/software/python_lib/lib/python3.8/site-packages/gsport.py", line 447, in main
+    session = Session(options)
+  File "/data/antwerpen/205/vsc20587/software/python_lib/lib/python3.8/site-packages/gsport.py", line 176, in __init__
+    self.login()
+  File "/data/antwerpen/205/vsc20587/software/python_lib/lib/python3.8/site-packages/gsport.py", line 195, in login
+    username = input("Username: ")
+EOFError: EOF when reading a line
+md5sum: checksums.md5: No such file or directory
