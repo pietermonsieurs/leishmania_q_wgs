@@ -38,7 +38,13 @@ cd ${vcf_dir}
 gatk SelectVariants -V ${vcf_dir}/combined.vcf.gz  --select-type-to-include SNP  -O ${vcf_dir}/combined_snps.vcf.gz
 
 ## add filter information
-gatk VariantFiltration -V ${vcf_dir}/combined_snps.vcf.gz -filter "QD < 2.0" --filter-name "QD2"  -filter "QUAL < 200.0" --filter-name "QUAL200" -filter "SOR > 3.0" --filter-name "SOR3"  -filter "FS > 60.0" --filter-name "FS60"  -filter "MQ < 40.0" --filter-name "MQ40"  -O ${vcf_dir}/combined_filter_added_snps.vcf.gz
+gatk VariantFiltration -V ${vcf_dir}/combined_snps.vcf.gz \
+    -filter "QD < 2.0" --filter-name "QD2"  \
+    -filter "QUAL < 200.0" --filter-name "QUAL200" \
+    -filter "SOR > 3.0" --filter-name "SOR3"  \
+    -filter "FS > 60.0" --filter-name "FS60"  \
+    -filter "MQ < 40.0" --filter-name "MQ40"  \
+    -O ${vcf_dir}/combined_filter_added_snps.vcf.gz
 
 
 ## select only SNPs that passed the filter 
@@ -52,7 +58,11 @@ gatk SelectVariants -V ${vcf_dir}/combined.vcf.gz -select-type INDEL -O ${vcf_di
 zcat ${vcf_dir}/${prefix}.indels.vcf.gz | grep -v #" | wc
 
 ## add filter information
-gatk VariantFiltration  -V ${vcf_dir}/combined.indels.vcf.gz -filter "QD < 2.0" --filter-name "QD2" -filter "QUAL < 200.0" --filter-name "QUAL200" -filter "FS > 200.0" --filter-name "FS200" -O ${vcf_dir}/combined.filter_added.indels.vcf.gz
+gatk VariantFiltration  -V ${vcf_dir}/combined.indels.vcf.gz \
+    -filter "QD < 2.0" --filter-name "QD2" \
+    -filter "QUAL < 200.0" --filter-name "QUAL200" \
+    -filter "FS > 200.0" --filter-name "FS200" \
+    -O ${vcf_dir}/combined.filter_added.indels.vcf.gz
 
 ## select only indels that passed the filter - 5347 passed filter
 gatk SelectVariants -R $ref_genome -V ${vcf_dir}/combined.filter_added.indels.vcf.gz --exclude-filtered true -O ${vcf_dir}/combined.filtered.indels.vcf.gz
