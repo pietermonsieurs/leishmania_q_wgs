@@ -5,6 +5,7 @@ library('pheatmap')
 library('RColorBrewer')
 library('openxlsx')
 library('grid')
+library(dplyr)
 
 
 
@@ -141,10 +142,11 @@ p_combined = plot_layout(ncol = 5)
 p_combined = plot_layout(ncol = 1)
 
 
-## read in meta data
+## read in meta data. ID_code_short is now a separate column in the 
+## metadata excel and does not need to be constructed in the script
 meta_data_file = '/Users/pmonsieurs/Library/CloudStorage/OneDrive-ITG/leishmania_q_wgs/data/WGS_Samples_DataBase.xlsx'
 meta_data = read.xlsx(meta_data_file, startRow = 2, sheet = "Data_base")
-meta_data$ID_code_short = gsub("106214-001-", "", meta_data$ID_code)
+# meta_data$ID_code_short = gsub("106214-001-", "", meta_data$ID_code)
 meta_data$sample_name = paste0(meta_data$strain, "_", meta_data$PAT, "_", meta_data$Replicate)
 
 strains = unique(meta_data$strain)
@@ -153,6 +155,7 @@ names(plot_list) = strains
 
 
 
+## 36 = number of chroms! not number of samples!
 somy_plot_df <- data.frame(matrix(ncol = 0, nrow = 36))
 sample_names = c()
 plot_count = 0
@@ -250,7 +253,7 @@ colnames(somy_plot_df) = sample_names
 head(somy_plot_df)
 
 ## make boxplot per sample and create one output per strain containing 
-## in total 6 samples
+## in total 8 samples
 for (strain in strains) {
   boxplot_file = paste0(bwa_dir, 'boxplots_somy_', strain, '.png')
   ggsave(boxplot_file, 
@@ -268,10 +271,16 @@ breaks = seq(0.5,6.5,1)
 ## read in meta data
 meta_data_file = '/Users/pmonsieurs/Library/CloudStorage/OneDrive-ITG/leishmania_q_wgs/data/WGS_Samples_DataBase.xlsx'
 meta_data = read.xlsx(meta_data_file, startRow = 2, sheet = "Data_base")
-meta_data$ID_code_short = gsub("106214-001-", "", meta_data$ID_code)
+# meta_data$ID_code_short = gsub("106214-001-", "", meta_data$ID_code)
 meta_data$sample_name = paste0(meta_data$strain, "_", meta_data$PAT, "_", meta_data$Replicate)
 meta_data_sorted = meta_data[match(colnames(somy_plot_df), meta_data$ID_code_short),]
 colnames(somy_plot_df) = meta_data_sorted$sample_name
+
+## sort according to column name and write output to an excel 
+## file for JC
+somy_plot_df_sorted = somy_plot_df[, order(colnames(somy_plot_df))]
+somy_df_file = paste0("/Users/pmonsieurs/Library/CloudStorage/OneDrive-ITG/leishmania_q_wgs/results/somy/", 'WGS_q_somy_values.xlsx')
+write.xlsx(somy_plot_df_sorted, file= somy_df_file, rowNames = TRUE)
 
 ## add annotation data
 head(meta_data)
@@ -282,8 +291,8 @@ rownames(annotation_data) = colnames(somy_plot_df)
 pheatmap(somy_plot_df,
          cluster_rows=TRUE, 
          cluster_cols=TRUE,
-         # breaks=breaks,
-         # color=colorRampPalette(rev(brewer.pal(n = 10, name = "RdYlBu")))(length(breaks)),
+         breaks=breaks,
+         color=colorRampPalette(rev(brewer.pal(n = 10, name = "RdYlBu")))(length(breaks)),
          annotation_col = annotation_data)
 
 plot_list = vector("list", length(strains))
@@ -304,6 +313,90 @@ for (strain in strains) {
 }
 
 
+## make a plot where the somy values per strains are plotted on a 
+## line, with the PAT and no PAT plotted in different colors
+plot_data = melt(as.matrix(somy_plot_df))
+colnames(plot_data) = c('Chromosome', 'sample_name', 'Value')
+plot_data$Strain = meta_data[match(plot_data$sample_name, meta_data$sample_name),]$strain
+plot_data$Condition = meta_data[match(plot_data$sample_name, meta_data$sample_name),]$PAT
+plot_data$Replicate = meta_data[match(plot_data$sample_name, meta_data$sample_name),]$Replicate
+
+
+## add the t-test
+t_test_results <- plot_data %>%
+  group_by(Strain, Chromosome) %>%
+  summarize(p_value = t.test(Value[Condition == 'PAT'], Value[Condition == 'no_PAT'])$p.value) %>%
+  mutate(significant = ifelse(p_value < 0.05, "*", ""))
+
+t_test_results <- plot_data %>%
+  group_by(Strain, Chromosome) %>%
+  # Calculate p-value and mean difference
+  summarize(mean_diff = abs(mean(Value[Condition == 'PAT']) - mean(Value[Condition == 'no_PAT'])),
+            p_value = tryCatch(t.test(Value[Condition == 'PAT'], Value[Condition == 'no_PAT'])$p.value, 
+                               error = function(e) NA)) %>%
+  # Apply mean difference threshold and assign significance labels
+  mutate(significant = case_when(
+    p_value < 0.001 & mean_diff > 0.50 ~ "***",
+    p_value < 0.01 & mean_diff > 0.50 ~ "**",
+    p_value < 0.05 & mean_diff > 0.50 ~ "*",
+    TRUE ~ ""))  # If mean difference is too small, no asterisk
+
+plot_data <- plot_data %>%
+  left_join(t_test_results, by = c("Strain", "Chromosome"))
+
+
+ggplot(plot_data, aes(x = Chromosome, y = Value, group = Strain)) +
+  geom_point(aes(color = Condition), size = 3, alpha=0.50) +  # Replicate points colored by Condition
+  labs(x = "Chromosome",
+       y = "Somy value",
+       color = "Condition",
+       shape = "Replicate") +
+  theme_minimal() + 
+  coord_flip() + 
+  facet_wrap(~ Strain, scales = c("free_x"), ncol=4)
+  
+ggplot(plot_data, aes(x = Chromosome, y = Value, group = Strain)) +
+  geom_point(aes(color = Condition), size = 3, alpha = 0.50) +  # Replicate points colored by Condition
+  labs(x = "Chromosome",
+       y = "Somy value",
+       color = "Condition",
+       shape = "Replicate") +
+  theme_minimal() + 
+  coord_flip() + 
+  facet_wrap(~ Strain, scales = "free_x", ncol = 4) +  # Faceting by Strain
+  # Add asterisks for significant differences
+  geom_text(data = plot_data %>% distinct(Strain, Chromosome, significant), 
+            aes(x = Chromosome, y = max(plot_data$Value) + 0.2, label = significant),
+            size = 5, color = "black", vjust = -0.5)  # Asterisk above the highest value
+
+
+
+
+# Calculate max value per strain and chromosome to position the asterisks correctly
+plot_data_max <- plot_data %>%
+  group_by(Strain, Chromosome) %>%
+  summarize(max_value = max(Value))
+
+# Merge the max values for proper placement of asterisks
+plot_data <- plot_data %>%
+  left_join(plot_data_max, by = c("Strain", "Chromosome"))
+
+# Plot with correctly positioned asterisks
+ggplot(plot_data, aes(x = Chromosome, y = Value, group = Strain)) +
+  geom_point(aes(color = Condition), size = 3, alpha = 0.50) +  # Points for each replicate
+  labs(x = "Chromosome",
+       y = "Somy value",
+       color = "Condition") +
+  theme_minimal() + 
+  coord_flip() + 
+  facet_wrap(~ Strain, scales = "free", ncol = 4) +  # Faceting by strain
+  # Add asterisks for significant differences
+  geom_text(data = plot_data %>% distinct(Strain, Chromosome, significant, max_value.y) %>%
+              filter(significant == "*"),  # Only plot significant asterisks
+            aes(x = Chromosome, y = max_value.y + 0.2, label = significant),  # Place asterisk on max_value
+            size = 8, color = "black", nudge_x = - 0.7) +  # Adjust with nudge_x to align with dots
+  theme(axis.text.x = element_text(size = 10)) 
+
 # ,
 #          labels_row = gsub(" Leishmania DNA", "", stats_merged$print_name),
 #          labels_col = paste0(colnames(stats_merged)[4:39], "     ")) ## add spaces to increase margin
@@ -312,6 +405,67 @@ for (strain in strains) {
 
 
 
+
+
+## make a plot where the somy values per strains are plotted on a 
+## line, with the PAT and no PAT plotted in different colors
+plot_data = melt(as.matrix(somy_plot_df))
+colnames(plot_data) = c('Chromosome', 'sample_name', 'Value')
+plot_data$Strain = meta_data[match(plot_data$sample_name, meta_data$sample_name),]$strain
+plot_data$Condition = meta_data[match(plot_data$sample_name, meta_data$sample_name),]$PAT
+plot_data$Replicate = meta_data[match(plot_data$sample_name, meta_data$sample_name),]$Replicate
+
+# Ensure correct grouping and perform t-tests per strain and chromosome
+t_test_results <- plot_data %>%
+  group_by(Strain, Chromosome) %>%
+  # Calculate p-value and mean difference
+  summarize(mean_diff = abs(mean(Value[Condition == 'PAT']) - mean(Value[Condition == 'no_PAT'])),
+            p_value = tryCatch(t.test(Value[Condition == 'PAT'], Value[Condition == 'no_PAT'])$p.value, 
+                               error = function(e) NA)) %>%
+  # Apply mean difference threshold and assign significance labels
+  mutate(significant = case_when(
+    p_value < 0.001 & mean_diff > 0.50 ~ "***",
+    p_value < 0.01 & mean_diff > 0.50 ~ "**",
+    p_value < 0.05 & mean_diff > 0.50 ~ "*",
+    TRUE ~ ""))  # If mean difference is too small, no asterisk
+
+# Merge t-test results back into the original data
+plot_data <- plot_data %>%
+  left_join(t_test_results, by = c("Strain", "Chromosome"))
+
+# Calculate max value per strain and chromosome to position the asterisks correctly
+plot_data_max <- plot_data %>%
+  group_by(Strain, Chromosome) %>%
+  summarize(max_value = max(Value))
+
+# Merge the max values for proper placement of asterisks
+plot_data <- plot_data %>%
+  left_join(plot_data_max, by = c("Strain", "Chromosome"))
+
+# Rename the max_value column to avoid conflicts
+plot_data <- plot_data %>%
+  rename(max_value_plot = max_value)
+
+# Plot with asterisks based on significance levels
+ggplot(plot_data, aes(x = Chromosome, y = Value, group = Strain)) +
+  geom_point(aes(color = Condition), size = 3, alpha = 0.50) +  # Points for each replicate
+  labs(x = "Chromosome",
+       y = "Somy value",
+       color = "Condition") +
+  theme_minimal() + 
+  coord_flip() + 
+  facet_wrap(~ Strain, scales = "free_x", ncol = 4) +  # Faceting by strain
+  # Add asterisks for significant differences, based on p-value and mean difference
+  geom_text(data = plot_data %>% distinct(Strain, Chromosome, significant, max_value_plot) %>%
+              filter(significant != ""),  # Only plot significant asterisks
+            aes(x = Chromosome, y = max_value_plot + 0.3, label = significant),  # Place asterisk on max_value_plot
+            size = 5, color = "black", nudge_x = -0.5) +  # Adjust with nudge_x to align with dots
+  theme(axis.text.y = element_text(size = 10))  # Repeat Chromosome label for each facet
+
+# Export t_test_results to CSV if needed
+write.csv(t_test_results, "t_test_results_with_mean_diff.csv")
+
+                               
 
 
 ## create heatmap witsh the difference between the predicted and the actual

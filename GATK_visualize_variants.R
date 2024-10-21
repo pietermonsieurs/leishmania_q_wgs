@@ -6,6 +6,8 @@ library('RColorBrewer')
 library('reshape2')
 library('ggplot2')
 library(openxlsx)
+library(gridExtra)
+library(viridis)
 
 meta_data_file = '/Users/pmonsieurs/Library/CloudStorage/OneDrive-ITG/leishmania_q_wgs/data/WGS_Samples_DataBase.xlsx'
 src_dir = '/Users/pmonsieurs/programming/leishmania_q_wgs/results/bwa/'
@@ -46,15 +48,18 @@ x <- vcfR2genlight(vcf)
 gt_matrix = t(as.data.frame(x))
 
 
-## read in meta data
+## read in meta data. ID_code_short is now a separate column in the meta
+## data excel file, and does not need to be derived. Needed as it now contains 
+## e.g. 001_Yeti
 meta_data = read.xlsx(meta_data_file, startRow = 2, sheet = "Data_base")
-meta_data$ID_code_short = gsub("106214-001-", "", meta_data$ID_code)
+# meta_data$ID_code_short = gsub("106214-001-", "", meta_data$ID_code)
 meta_data$sample_name = paste0(meta_data$strain, "_", meta_data$PAT, "_", meta_data$Replicate)
 
 
 ## mapping of sample names to biologically interpretable names accoring to meta
 ## data supplied by Allison
-colnames(gt_matrix) = meta_data$sample_name
+new_col_names = meta_data[match(colnames(gt_matrix), meta_data$ID_code_short),]$sample_name
+colnames(gt_matrix) = new_col_names
 head(gt_matrix)
 
 ## clean up the gt matrix and remove all SNPs where the sum over the different
@@ -65,17 +70,24 @@ gt_matrix_sub = gt_matrix[- which(rowSums(gt_matrix == 2, na.rm=TRUE) == 6),]
 
 gt_matrix_sub[is.na(gt_matrix_sub)] = 0
 
-## remove samples 001,002 etc.
-# gt_matrix_sub_select = gt_matrix_sub[, - which(colnames(gt_matrix_sub) %in% c('001', '002', '003', '019', '020', '021'))]
+## remove the Yeti strains as they contribute with too many SNPs 
+## making it impossible to create a heatmap
 gt_matrix_sub_select = gt_matrix_sub[, - grep("BPK026", colnames(gt_matrix_sub))]
-gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select == 0) == 30),]
-gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select == 1) == 30),]
-gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select == 2) == 30),]
+gt_matrix_sub_select = gt_matrix_sub[, - grep("BPK031", colnames(gt_matrix_sub))]
+gt_matrix_sub_select = gt_matrix_sub[, - grep("BPK156", colnames(gt_matrix_sub))]
+
+
+gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select == 0) == 42),]
+gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select == 1) == 42),]
+gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select == 2) == 42),]
 # gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(is.na(gt_matrix_sub)) == 30),]
 
 ## add annotation data for heatmap
 annotation_data = data.frame(strain = meta_data$strain, PAT = meta_data$PAT)
 annotation_data = annotation_data[-grep("BPK026", annotation_data$strain),]
+annotation_data = annotation_data[-grep("BPK031", annotation_data$strain),]
+annotation_data = annotation_data[-grep("BPK156", annotation_data$strain),]
+
 rownames(annotation_data) = colnames(gt_matrix_sub_select)
 
 
@@ -103,6 +115,8 @@ info_data = INFO2df(vcf)
 ann_data = str_split_fixed(info_data$ANN, "\\|", n=10)
 head(ann_data)
 table(ann_data[,2])
+table(ann_data[,5])
+
 
 ## select only those SNP with a substantial impact (e.g. ("missense_variant", 
 ## "stop_gained") or remove the one with a non-harmful deletion (e.g. 
@@ -125,13 +139,32 @@ vcf_impact = vcf[! ann_data[,2] %in% variants_omit, ]
 # vcf_impact = vcf[mutation_impact,]
 
 
+info_data_genename = INFO2df(vcf_impact)
+ann_data_genename = str_split_fixed(info_data_genename$ANN, "\\|", n=10)
+head(ann_data_genename)
+table(ann_data_genename[,2])
+table(ann_data_genename[,5])
+
+dim(ann_data_genename)
+dim(vcf_impact@fix)
+head(vcf_impact@fix)
+
+## recreate the genename in the annotation data frame by concatenating the
+## chromosome with the position
+rownames(ann_data_genename) = paste0(vcf_impact@fix[,1], "_", vcf_impact@fix[,2])
+head(ann_data_genename[,1:5])
+
+
+
+
 ## create heatmap with impact SNPs
 x_impact <- vcfR2genlight(vcf_impact)
 gt_impact_matrix = t(as.data.frame(x_impact))
 
 ## mapping of sample names to biologically interpretable names accoring to meta
 ## data supplied by Allison
-colnames(gt_impact_matrix) = meta_data$sample_name
+
+colnames(gt_impact_matrix) = new_col_names
 head(gt_matrix)
 
 ## clean up the gt matrix and remove all SNPs where the sum over the different
@@ -146,14 +179,20 @@ gt_matrix_sub[is.na(gt_matrix_sub)] = 0
 ## remove samples 001,002 etc.
 # gt_matrix_sub_select = gt_matrix_sub[, - which(colnames(gt_matrix_sub) %in% c('001', '002', '003', '019', '020', '021'))]
 gt_matrix_sub_select = gt_matrix_sub[, - grep("BPK026", colnames(gt_matrix_sub))]
-gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select == 0) == 30),]
-gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select == 1) == 30),]
+gt_matrix_sub_select = gt_matrix_sub[, - grep("BPK031", colnames(gt_matrix_sub))]
+gt_matrix_sub_select = gt_matrix_sub[, - grep("BPK156", colnames(gt_matrix_sub))]
+
+gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select == 0) == 42),]
+gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select == 1) == 42),]
 # gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select == 2) == 30),]
 # gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(is.na(gt_matrix_sub)) == 30),]
 
 ## add annotation data for heatmap
 annotation_data = data.frame(strain = meta_data$strain, PAT = meta_data$PAT)
 annotation_data = annotation_data[-grep("BPK026", annotation_data$strain),]
+annotation_data = annotation_data[-grep("BPK031", annotation_data$strain),]
+annotation_data = annotation_data[-grep("BPK156", annotation_data$strain),]
+
 rownames(annotation_data) = colnames(gt_matrix_sub_select)
 
 
@@ -194,7 +233,8 @@ p_heatmaps = list()
 p_heatmaps_impact = list()
 p_heatmaps_impact_homo = list()
 
-annotation_data = data.frame(strain = meta_data$strain, PAT = meta_data$PAT)
+meta_data_sorted = meta_data[match(colnames(gt_matrix), meta_data$sample_name),]
+annotation_data = data.frame(strain = meta_data_sorted$strain, PAT = meta_data_sorted$PAT)
 # annotation_data = annotation_data[-grep("BPK026", annotation_data$strain),]
 rownames(annotation_data) = colnames(gt_matrix)
 
@@ -204,6 +244,7 @@ for (strain in strains) {
   
   ## analysis for all SNPs combined
   gt_matrix_strain = gt_matrix[,grep(strain, colnames(gt_matrix))]
+  # gt_matrix_strain = gt_matrix_strain[- which(rowSums(gt_matrix_strain == 2, na.rm=TRUE) == 6),]
   gt_matrix_strain[is.na(gt_matrix_strain)] = 0
   gt_matrix_strain_cleaned <- gt_matrix_strain[!apply(gt_matrix_strain, 1, function(row) length(unique(row)) == 1), ]
   
@@ -256,28 +297,34 @@ for (strain in strains) {
 
 
 grid.arrange(p_heatmaps[["BPK026"]]$gtable, 
+             p_heatmaps[["BPK031"]]$gtable, 
+             p_heatmaps[["BPK156"]]$gtable, 
              p_heatmaps[["BPK275"]]$gtable, 
              p_heatmaps[["BPK080"]]$gtable, 
              p_heatmaps[["BPK085"]]$gtable, 
              p_heatmaps[["BPK282"]]$gtable, 
              p_heatmaps[["BPK294"]]$gtable, 
-             ncol = 3)
+             ncol = 4)
 
 grid.arrange(p_heatmaps_impact[["BPK026"]]$gtable, 
+             p_heatmaps_impact[["BPK031"]]$gtable, 
+             p_heatmaps_impact[["BPK156"]]$gtable, 
              p_heatmaps_impact[["BPK275"]]$gtable, 
              p_heatmaps_impact[["BPK080"]]$gtable, 
              p_heatmaps_impact[["BPK085"]]$gtable, 
              p_heatmaps_impact[["BPK282"]]$gtable, 
              p_heatmaps_impact[["BPK294"]]$gtable, 
-             ncol = 3)
+             ncol = 4)
 
-grid.arrange(p_heatmaps_impact_homo[["BPK026"]]$gtable, 
+grid.arrange(p_heatmaps_impact_homo[["BPK026"]]$gtable,
+             p_heatmaps_impact_homo[["BPK031"]]$gtable,
+             p_heatmaps_impact_homo[["BPK156"]]$gtable,
              p_heatmaps_impact_homo[["BPK275"]]$gtable, 
              p_heatmaps_impact_homo[["BPK080"]]$gtable, 
              p_heatmaps_impact_homo[["BPK085"]]$gtable, 
              p_heatmaps_impact_homo[["BPK282"]]$gtable, 
              p_heatmaps_impact_homo[["BPK294"]]$gtable, 
-             ncol = 3)
+             ncol = 4)
 
 p_heatmaps[['BPK026']]
 
@@ -330,13 +377,152 @@ for (strain in strains) {
   
 }
 
-grid.arrange(p_overlap[["BPK026"]]$gtable, 
+grid.arrange(p_overlap[["BPK026"]]$gtable,
+             p_overlap[["BPK031"]]$gtable,
+             p_overlap[["BPK156"]]$gtable,
              p_overlap[["BPK275"]]$gtable, 
              p_overlap[["BPK080"]]$gtable, 
              p_overlap[["BPK085"]]$gtable, 
              p_overlap[["BPK282"]]$gtable, 
              p_overlap[["BPK294"]]$gtable, 
-             ncol = 3)
+             ncol = 4)
+
+
+## combine all Yeti strains
+
+
+
+#### 2. summarise SNPs per gene ####
+
+# ---- 2.1 check gene information ---- #
+head(gt_impact_matrix)
+head(ann_data_genename)
+dim(gt_impact_matrix)
+dim(ann_data_genename)
+rownames(ann_data_genename)
+
+## make a copy of gt_impact_matrix
+gt_impact_matrix_copy = gt_impact_matrix
+gt_impact_matrix_copy <- as.data.frame(gt_impact_matrix_copy)
+gene_names = ann_data_genename[match(rownames(gt_impact_matrix_copy), rownames(ann_data_genename)),5]
+gt_impact_matrix_copy$gene = unlist(gene_names, use.names = FALSE)
+
+
+## summarize all SNPs per gene and select the maximum value (which can 
+## be 0, 1 or 2)
+library(dplyr)
+gt_impact_matrix_gene <- gt_impact_matrix_copy %>%
+  group_by(gene) %>%
+  summarise(across(everything(), max, na.rm = TRUE))
+
+
+## replace all values with a value of 2 by 1, as the first plan is to 
+## not make a distinction between homozygote and heterozygote SNPs
+gt_impact_matrix_gene[gt_impact_matrix_gene == 2] <- 1
+
+## add the gene as rowname and remove it from the data frame
+gt_impact_matrix_gene = as.data.frame(gt_impact_matrix_gene)
+rownames(gt_impact_matrix_gene) = gt_impact_matrix_gene$gene
+gt_impact_matrix_gene = gt_impact_matrix_gene[,-1]
+head(gt_impact_matrix_gene)
+dim(gt_impact_matrix_gene)
+
+## do the distinction between Yeti strains and core strains.  
+# rowSums(gt_impact_matrix_gene)
+colnames(gt_impact_matrix_gene)
+yeti_columns = grep("BPK026|BPK031|BPK156", colnames(gt_impact_matrix_gene))
+
+## yeti-analysis: select only the Yeti strains or *not* on Yeti strains
+gt_impact_matrix_gene_yeti = gt_impact_matrix_gene[, yeti_columns]
+gt_impact_matrix_gene_yeti = gt_impact_matrix_gene[, - yeti_columns]
+
+
+gt_impact_matrix_gene_yeti[gt_impact_matrix_gene_yeti == -Inf] <- NA
+dim(gt_impact_matrix_gene_yeti)
+gt_impact_matrix_gene_yeti <- gt_impact_matrix_gene_yeti[!apply(gt_impact_matrix_gene_yeti, 1, function(row) length(unique(row)) == 1), ]
+dim(gt_impact_matrix_gene_yeti)
+
+# Replace NA or Inf with 0
+gt_impact_matrix_gene_yeti[is.na(gt_impact_matrix_gene_yeti)] <- 0
+#gt_impact_matrix_gene_yeti[!is.finite(gt_impact_matrix_gene_yeti)] <- 0  # Handle Inf/-Inf
+gt_impact_matrix_gene_yeti[!apply(gt_impact_matrix_gene_yeti, 2, is.finite)] <- 0  # Handle Inf/-Inf
+
+
+annotation_data = as.data.frame(meta_data[match(colnames(gt_impact_matrix_gene_yeti), meta_data$sample_name),]$PAT)
+rownames(annotation_data) = colnames(gt_impact_matrix_gene_yeti)
+colnames(annotation_data) = c('PAT')
+
+library(pheatmap)
+pheatmap(gt_impact_matrix_gene_yeti,
+         cluster_cols = TRUE,
+         cluster_rows = TRUE, 
+         fontsize_row = 5, 
+         annotation_col = annotation_data)
+
+
+## remove the strain specific SNPs as they will not be contributing to 
+## the drug resistance
+strains = unique(meta_data$strain)
+rows_all_remove = c()
+for (strain in strains) {
+  gt_impact_matrix_gene_yeti_strain = gt_impact_matrix_gene_yeti[, grep(strain, colnames(gt_impact_matrix_gene_yeti))]
+  rows_to_remove = which(apply(gt_impact_matrix_gene_yeti_strain, 1, function(row) length(unique(row)) == 1))
+  rows_all_remove = c(rows_all_remove, rows_to_remove)
+}
+
+gt_impact_matrix_gene_yeti_clean = gt_impact_matrix_gene_yeti[-rows_all_remove,]
+pheatmap(gt_impact_matrix_gene_yeti_clean,
+         cluster_cols = TRUE,
+         cluster_rows = TRUE, 
+         fontsize_row = 5, 
+         annotation_col = annotation_data)
+
+
+
+
+
+#### 3. drug resistance regions ####
+
+## make a copy of gt_impact_matrix
+gt_impact_matrix_copy = gt_impact_matrix
+gt_impact_matrix_copy <- as.data.frame(gt_impact_matrix_copy)
+gene_names = ann_data_genename[match(rownames(gt_impact_matrix_copy), rownames(ann_data_genename)),5]
+gt_impact_matrix_copy$gene = unlist(gene_names, use.names = FALSE)
+
+## read in the excel file containing the drug resistance regions and extract
+## them from the bigger file 
+dr_genes_file = '/Users/pmonsieurs/programming/leishmania_q_wgs/data/drug_genes_Ldon.xlsx'
+drug_genes = read.xlsx(dr_genes_file)
+drug_genes$gene_id_v2 = gsub(".1$", "", drug_genes$gene_id_v2)
+head(drug_genes)
+
+## select only the drug resistance genes from the gt_matrix
+gt_impact_matrix_dr = gt_impact_matrix_copy
+gt_impact_matrix_dr = gt_impact_matrix_dr[gt_impact_matrix_dr$gene %in% drug_genes$gene_id_v2,]
+gt_impact_matrix_dr$drug_gene = drug_genes[match(gt_impact_matrix_dr$gene, drug_genes$gene_id_v2),]$resistance
+                                      
+## get the snpEff information 
+snp_eff_data = ann_data_genename[match(rownames(gt_impact_matrix_dr), rownames(ann_data_genename)),c(2,3)]
+colnames(snp_eff_data) = c('snp_variant', 'snp_impact')
+if (dim(snp_eff_data)[1] == dim(gt_impact_matrix_dr)[1]) {
+  gt_impact_matrix_dr = cbind.data.frame(gt_impact_matrix_dr, snp_eff_data)
+}
+
+gt_impact_matrix_dr$snp_variant = gsub("_variant", "", gt_impact_matrix_dr$snp_variant)
+gt_impact_matrix_dr$rowname = paste0(gt_impact_matrix_dr$drug_gene, '|', 
+                                     rownames(gt_impact_matrix_dr), '|',
+                                     gt_impact_matrix_dr$snp_variant)
+rownames(gt_impact_matrix_dr) = gt_impact_matrix_dr$rowname
+
+
+pheatmap(gt_impact_matrix_dr[,1:48],
+         cluster_rows=FALSE,
+         cluster_cols=TRUE,
+         treeheight_col = 0)
+
+
+
+
 
 ####### BELOW NOT (YET?) USED FOR Q WGS ######
 
