@@ -9,6 +9,7 @@ library(patchwork)
 src_dir = '/Users/pmonsieurs/programming/leishmania_q_wgs/results/cnv/'
 cnv_files = list.files(src_dir, pattern = ".cnv.csv")
 meta_data_file = '/Users/pmonsieurs/Library/CloudStorage/OneDrive-ITG/leishmania_q_wgs/data/WGS_Samples_DataBase.xlsx'
+out_dir = '/Users/pmonsieurs/programming/leishmania_q_wgs/docs/figures/draft_nov2024/'
 
 
 ## read in the meta data and create an additional column name
@@ -56,12 +57,34 @@ pheatmap(t(cnv_data_up[,5:ncol(cnv_data_up)]),
          treeheight_col = 0,
          breaks = breaks)
 
+## same but only for Yeti
+col_index = c(grep("BPK026", colnames(cnv_data_relevant)),
+              grep("BPK031", colnames(cnv_data_relevant)),
+              grep("BPK156", colnames(cnv_data_relevant)))
+cnv_data_yeti = cnv_data[, c(1:4,col_index)]
+cnv_data_yeti_up = cnv_data_yeti[rowSums(cnv_data_yeti[,5:ncol(cnv_data_yeti)] > cutoff_cnv) > 0,]
+cnv_data_yeti_down = cnv_data_yeti[rowSums(cnv_data_yeti[,5:ncol(cnv_data_yeti)] < 1/cutoff_cnv) > 0,]
+cnv_data_yeti_diff = rbind.data.frame(cnv_data_yeti_up, cnv_data_yeti_down)
+dim(cnv_data_yeti_diff)
+
+breaks = seq(0,5,0.05)
+pheatmap(t(cnv_data_yeti_diff[,5:ncol(cnv_data_yeti_diff)]),
+         cluster_rows = TRUE,
+         cluster_cols = TRUE,
+         show_colnames = FALSE,
+         treeheight_col = 0,
+         breaks = breaks)
+
+
 ## create heatmap per strain
 strains = unique(meta_data$strain)
 p_heatmaps = list()
 p_heatmaps_significant = list()
 p_lineplots = list()
 relevant_genes = c()
+relevant_genes_core = c()
+relevant_genes_yeti = c()
+yeti_strains = c('BPK026', 'BPK031', 'BPK156')
 
 for (strain in strains) {
   col_indices =  grep(strain, colnames(cnv_data))
@@ -157,6 +180,12 @@ for (strain in strains) {
   ## heatmap 
   relevant_genes = c(relevant_genes, cnv_data_strain_sign$gene_id)
   
+  if (strain %in% yeti_strains) {
+    relevant_genes_yeti = c(relevant_genes_yeti, cnv_data_strain_sign$gene_id)    
+  }else{
+    relevant_genes_core = c(relevant_genes_core, cnv_data_strain_sign$gene_id)
+  }
+  
 }
 
 grid.arrange(p_heatmaps[["BPK026"]]$gtable, 
@@ -191,6 +220,8 @@ grid.arrange(p_lineplots[["BPK026"]],
 
 ## make heatmap with only those genes that were significant somewhere in the 
 ## statistical test of the different strains
+
+## for ALL genes
 length(relevant_genes)
 relevant_genes_unique = unique(relevant_genes)
 cnv_data_relevant = cnv_data[cnv_data$gene_id %in% relevant_genes_unique, ]
@@ -203,6 +234,67 @@ pheatmap(t(cnv_data_relevant[,5:ncol(cnv_data_relevant)]),
          treeheight_col = 0,
          treeheight_row = 0,
          breaks = breaks)
+
+
+
+## for CORE genes
+
+## grep the significant genes
+length(relevant_genes_core)
+relevant_genes_unique = unique(relevant_genes_core)
+cnv_data_relevant = cnv_data[cnv_data$gene_id %in% relevant_genes_unique, ]
+rownames(cnv_data_relevant) = cnv_data_relevant$gene_id
+
+## select core strains
+col_index = c(grep("BPK026", colnames(cnv_data_relevant)),
+              grep("BPK031", colnames(cnv_data_relevant)),
+              grep("BPK156", colnames(cnv_data_relevant)))
+cnv_data_relevant = cnv_data_relevant[, -col_index]
+
+png_cnv_core = pheatmap(t(cnv_data_relevant[,5:ncol(cnv_data_relevant)]),
+         cluster_rows = TRUE,
+         cluster_cols = TRUE,
+         show_colnames = TRUE,
+         treeheight_col = 0,
+         treeheight_row = 0,
+         breaks = breaks)
+png_cnv_core
+
+png_cnv_core_file = paste(out_dir, 'fig_04B_CNV_corestrains.png')
+ggsave(filename = png_cnv_core_file,
+       plot = png_cnv_core,
+       width = 16,
+       height = 9)
+
+
+## for YETI genes
+
+## grep the significant genes
+length(relevant_genes_yeti)
+relevant_genes_unique = unique(relevant_genes_yeti)
+cnv_data_relevant = cnv_data[cnv_data$gene_id %in% relevant_genes_unique, ]
+rownames(cnv_data_relevant) = cnv_data_relevant$gene_id
+
+## select core strains
+col_index = c(grep("BPK026", colnames(cnv_data_relevant)),
+              grep("BPK031", colnames(cnv_data_relevant)),
+              grep("BPK156", colnames(cnv_data_relevant)))
+cnv_data_relevant = cnv_data_relevant[, c(1:4,col_index)]
+
+png_cnv_yeti = pheatmap(t(cnv_data_relevant[,5:ncol(cnv_data_relevant)]),
+                        cluster_rows = FALSE,
+                        cluster_cols = TRUE,
+                        show_colnames = TRUE,
+                        treeheight_col = 0,
+                        treeheight_row = 0,
+                        breaks = breaks)
+png_cnv_yeti
+
+png_cnv_yeti_file = paste(out_dir, 'fig_04B_CNV_yetistrains.png')
+ggsave(filename = png_cnv_yeti_file,
+       plot = png_cnv_yeti,
+       width = 16,
+       height = 9)
 
 
 ## make some kind of line plot, where one line is one gene, and the six values
@@ -236,3 +328,22 @@ ggplot(plot_data_sign, aes(x = gene_id, y = cnv, group = strain)) +
   ) + 
   coord_flip() + 
   facet_wrap(~ strain, scales = c("free_x"), ncol=4)
+
+
+
+## focus on the region in the input CNV file with the rRNA region
+genes_subset = paste0("LdBPK_22000", seq(9100, 9400, 100))
+cnv_data_chrom22 = cnv_data[cnv_data$gene_id %in% genes_subset,]
+rownames(cnv_data_chrom22) = cnv_data_chrom22$gene_id
+cnv_data_chrom22 = cnv_data_chrom22[,5:ncol(cnv_data_chrom22)]
+cnv_data_chrom22_heatmap = cnv_data_chrom22[,order(colnames(cnv_data_chrom22))]
+
+png_cnv_yeti = pheatmap(t(cnv_data_chrom22_heatmap),
+                        cluster_rows = FALSE,
+                        cluster_cols = FALSE,
+                        show_colnames = TRUE,
+                        treeheight_col = 0,
+                        treeheight_row = 0,
+                        breaks = breaks)
+png_cnv_yeti
+

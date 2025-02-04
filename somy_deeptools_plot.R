@@ -284,8 +284,10 @@ write.xlsx(somy_plot_df_sorted, file= somy_df_file, rowNames = TRUE)
 
 ## add annotation data
 head(meta_data)
-annotation_data = meta_data[,c('strain', 'PAT')]
+# annotation_data = meta_data[,c('strain', 'PAT')]
+annotation_data = meta_data[match(colnames(somy_plot_df), meta_data$sample_name), c('strain', 'PAT')]
 rownames(annotation_data) = colnames(somy_plot_df)
+head(annotation_data)
 
 # pheatmap(stats[,3:ncol(stats)],
 pheatmap(somy_plot_df,
@@ -296,6 +298,8 @@ pheatmap(somy_plot_df,
          annotation_col = annotation_data)
 
 plot_list = vector("list", length(strains))
+breaks = seq(0.5,6.5,1)
+
 for (strain in strains) {
   somy_plot_sub = somy_plot_df[, grep(strain, colnames(somy_plot_df))]
   p = pheatmap(somy_plot_sub,

@@ -12,6 +12,7 @@ library(viridis)
 meta_data_file = '/Users/pmonsieurs/Library/CloudStorage/OneDrive-ITG/leishmania_q_wgs/data/WGS_Samples_DataBase.xlsx'
 src_dir = '/Users/pmonsieurs/programming/leishmania_q_wgs/results/bwa/'
 setwd(src_dir)
+out_dir = '/Users/pmonsieurs/programming/leishmania_q_wgs/docs/figures/draft_nov2024/'
 
 
 vcf_file = 'combined.filtered.vcf.gz'
@@ -167,6 +168,7 @@ gt_impact_matrix = t(as.data.frame(x_impact))
 colnames(gt_impact_matrix) = new_col_names
 head(gt_matrix)
 
+
 ## clean up the gt matrix and remove all SNPs where the sum over the different
 ## samples is 6 (sample 001, 002, 003, 019, 020 and 021). This is BPK026 before
 ## and after PAT, and contains a very high amount of SNPs compared to the other 
@@ -174,18 +176,26 @@ head(gt_matrix)
 # gt_matrix_sub = gt_impact_matrix[- which(rowSums(gt_impact_matrix == 2, na.rm=TRUE) == 6),]
 gt_matrix_sub = gt_impact_matrix
 
+## put all NA values to zero. this might work for most SNPs but is also kind of
+## tricky. However, this will become clear when mering from different samples
+## for now seems to be best approach, as it should be 0 for most SNPs
 gt_matrix_sub[is.na(gt_matrix_sub)] = 0
+
+
+#### 1.2.1 >> Figure 04A_SNP map - for core strains ####
 
 ## remove samples 001,002 etc.
 # gt_matrix_sub_select = gt_matrix_sub[, - which(colnames(gt_matrix_sub) %in% c('001', '002', '003', '019', '020', '021'))]
 gt_matrix_sub_select = gt_matrix_sub[, - grep("BPK026", colnames(gt_matrix_sub))]
-gt_matrix_sub_select = gt_matrix_sub[, - grep("BPK031", colnames(gt_matrix_sub))]
-gt_matrix_sub_select = gt_matrix_sub[, - grep("BPK156", colnames(gt_matrix_sub))]
+gt_matrix_sub_select = gt_matrix_sub_select[, - grep("BPK031", colnames(gt_matrix_sub_select))]
+gt_matrix_sub_select = gt_matrix_sub_select[, - grep("BPK156", colnames(gt_matrix_sub_select))]
+dim(gt_matrix_sub_select)
 
-gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select == 0) == 42),]
-gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select == 1) == 42),]
-# gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select == 2) == 30),]
+gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select == 0) == 30),]
+gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select == 1) == 30),]
+gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select == 2) == 30),]
 # gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(is.na(gt_matrix_sub)) == 30),]
+dim(gt_matrix_sub_select)
 
 ## add annotation data for heatmap
 annotation_data = data.frame(strain = meta_data$strain, PAT = meta_data$PAT)
@@ -197,14 +207,67 @@ rownames(annotation_data) = colnames(gt_matrix_sub_select)
 
 
 
-pheatmap(gt_matrix_sub_select,
-         fontsize_row = 2,
-         show_rownames = FALSE,
-         cluster_cols = TRUE,
-         color = snp_colors,
-         breaks = breaks, 
-         treeheight_row = FALSE,
-         annotation_col = annotation_data)
+p_snpmap_core = pheatmap(gt_matrix_sub_select,
+                         fontsize_row = 2,
+                         show_rownames = FALSE,
+                         cluster_cols = TRUE,
+                         color = snp_colors,
+                         breaks = breaks, 
+                         treeheight_row = FALSE,
+                         annotation_col = annotation_data)
+p_snpmap_core
+
+
+png_file = paste0(out_dir, 'fig_04A_SNPmap_corestrains.png')
+ggsave(filename = png_file,
+       plot = p_snpmap_core,
+       width = 16,
+       height = 9)
+
+
+#### 1.2.2 >> Figure 04A_SNP map - for YETI strains ####
+
+## remove samples 001,002 etc.
+# gt_matrix_sub_select = gt_matrix_sub[, - which(colnames(gt_matrix_sub) %in% c('001', '002', '003', '019', '020', '021'))]
+col_index = c(grep("BPK026", colnames(gt_matrix_sub)),
+              grep("BPK031", colnames(gt_matrix_sub)),
+              grep("BPK156", colnames(gt_matrix_sub)))
+col_index 
+gt_matrix_sub_select = gt_matrix_sub[, col_index]
+dim(gt_matrix_sub_select)
+
+gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select == 0) == 18),]
+gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select == 1) == 18),]
+gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select == 2) == 18),]
+# gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(is.na(gt_matrix_sub)) == 30),]
+dim(gt_matrix_sub_select)
+
+## add annotation data for heatmap
+yeti_strains = c('BPK026', 'BPK031', 'BPK156')
+# annotation_data = annotation_data[annotation_data$strain %in% yeti_strains,]
+annotation_data = meta_data[match(colnames(gt_matrix_sub_select), meta_data$sample_name),c('strain','PAT')]
+rownames(annotation_data) = colnames(gt_matrix_sub_select)
+
+
+breaks = c(0,.66,1.33,2.00)
+p_snpmap_yeti = pheatmap(gt_matrix_sub_select,
+                         fontsize_row = 2,
+                         show_rownames = FALSE,
+                         cluster_cols = TRUE,
+                         color = snp_colors,
+                         breaks = breaks, 
+                         treeheight_row = FALSE,
+                         annotation_col = annotation_data)
+p_snpmap_yeti
+
+
+png_file = paste0(out_dir, 'fig_04A_SNPmap_yetistrains.png')
+ggsave(filename = png_file,
+       plot = p_snpmap_yeti,
+       width = 16,
+       height = 9)
+
+
 
 
 # ---- 1.3 remove overall heterozyogtes ----
