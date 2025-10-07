@@ -1,6 +1,6 @@
 #!/bin/bash -l
 
-#SBATCH --ntasks=1 --cpus-per-task=14
+#SBATCH --ntasks=1 --cpus-per-task=2
 #SBATCH --time=04:00:00
 #SBATCH -A ap_itg_mpu
 
@@ -15,10 +15,10 @@
 
 ## specify the deeptools binary and export the PythonPath so it can be run
 ## with a local binfile
-module load Python/3.10.4-GCCcore-11.3.0
+module load Python
 module load atools
-module load BioTools
-export PYTHONPATH="/user/antwerpen/205/vsc20587/data/software/python_lib/lib/python3.10/site-packages/:${PYTHONPATH}"
+module load SAMtools
+export PYTHONPATH="/user/antwerpen/205/vsc20587/data/software/python_lib/lib/python3.13/site-packages/:${PYTHONPATH}"
 bamcoverage_bin=/user/antwerpen/205/vsc20587/data/software/python_lib/bin/bamCoverage
 
 ## load the bam-files using the atools option
@@ -37,7 +37,7 @@ echo $bam_file
 samtools index $bam_file
 
 ## parameters for running & creating of name for output
-threads=14
+threads=2
 bin_size=100
 output_file=${bam_file/.bam/.deeptools.Ld23.bin${bin_size}.bedgraph}
 # output_file="${output_file##*/}"
@@ -54,7 +54,7 @@ $bamcoverage_bin \
     --binSize $bin_size \
     --normalizeUsing CPM \
     --numberOfProcessors $threads \
-    --region Ld23
+    --region ${chrom}
     # --skipNonCoveredRegions 
 
 ## run for all bam-files
@@ -63,4 +63,4 @@ $bamcoverage_bin \
 # vi bam_files.csv ## add header "bam_file"
 # echo $PWD/bam_files.csv
 # module load atools
-# sbatch --array $(arange --no_sniffer --data /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/results/bwa/bam_files.csv) /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/bin/somy_deeptools_hlocus.slurm
+# for chrom in Ld08 Ld10 Ld36; do sbatch --array $(arange --no_sniffer --data /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/results/bwa/bam_files.csv) --export=chrom=${chrom} /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/bin/somy_deeptools_hlocus.slurm; done
