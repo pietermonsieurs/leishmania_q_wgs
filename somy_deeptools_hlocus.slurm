@@ -39,7 +39,7 @@ samtools index $bam_file
 ## parameters for running & creating of name for output
 threads=2
 bin_size=100
-output_file=${bam_file/.bam/.deeptools.Ld23.bin${bin_size}.bedgraph}
+output_file=${bam_file/.bam/.deeptools.${chrom}.bin${bin_size}.bedgraph}
 # output_file="${output_file##*/}"
 
 # output_dir=/user/antwerpen/205/vsc20587/scratch/leishmania_susl/results/bwa_elife/hlocus/
@@ -63,4 +63,4 @@ $bamcoverage_bin \
 # vi bam_files.csv ## add header "bam_file"
 # echo $PWD/bam_files.csv
 # module load atools
-# for chrom in Ld08 Ld10 Ld36; do sbatch --array $(arange --no_sniffer --data /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/results/bwa/bam_files.csv) --export=chrom=${chrom} /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/bin/somy_deeptools_hlocus.slurm; done
+# for chrom in Ld08 Ld10 Ld23 Ld36; do sbatch --array $(arange --no_sniffer --data /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/results/bwa/bam_files.csv) --export=chrom=${chrom} /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/bin/somy_deeptools_hlocus.slurm; done
