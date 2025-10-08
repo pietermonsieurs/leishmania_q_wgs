@@ -22,7 +22,7 @@ export PYTHONPATH="/user/antwerpen/205/vsc20587/data/software/python_lib/lib/pyt
 bamcoverage_bin=/user/antwerpen/205/vsc20587/data/software/python_lib/bin/bamCoverage
 
 ## load the bam-files using the atools option
-source <(aenv --no_sniffer --data /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/results/bwa/bam_files.csv)
+source <(aenv --no_sniffer --data /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/results/bwa/bam_files_raw.csv)
 
 ## normalization procedure: CPM should work, as this normalizes for the difference
 ## in sequencing depth. It does not take into account the feature length (in case of RNA-seq)
@@ -60,7 +60,8 @@ $bamcoverage_bin \
 ## run for all bam-files
 # cd /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/results/bwa/
 # ls $PWD/*proper_paired.bam  > bam_files.csv 
+# ls $PWD/*.bam | grep -v mapq30 > bam_files_raw.csv
 # vi bam_files.csv ## add header "bam_file"
 # echo $PWD/bam_files.csv
 # module load atools
-# for chrom in Ld08 Ld10 Ld23 Ld36; do sbatch --array $(arange --no_sniffer --data /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/results/bwa/bam_files.csv) --export=chrom=${chrom} /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/bin/somy_deeptools_hlocus.slurm; done
+# for chrom in Ld08 Ld10 Ld23 Ld36; do sbatch --array $(arange --no_sniffer --data /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/results/bwa/bam_files_raw.csv) --export=chrom=${chrom} /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/bin/somy_deeptools_hlocus.slurm; done
