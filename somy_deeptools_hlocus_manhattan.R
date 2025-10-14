@@ -5,6 +5,11 @@ library(openxlsx)
 bwa_dir = '/Users/pmonsieurs/programming/leishmania_q_wgs/results/hlocus/'
 setwd(bwa_dir)
 bg_files <- list.files(pattern = "bin100.bedgraph")
+
+## only select the raw begraph files and remove the bedgraph files which 
+## are processed in such a way that they can contain duplicated regions
+bg_files <- bg_files[! grepl ("mapq30", bg_files)]
+
 bg_files
 
 
@@ -40,7 +45,9 @@ for (i in 1:nrow(cnv_data)) {
   
   for (bg_file in bg_files_chrom) {
     ## extract the sample name
-    sample_name = gsub(paste0(".mapq30.removedups.proper_paired.deeptools.", chrom, ".bin100.bedgraph"), "", bg_file)
+    # sample_name = gsub(paste0(".mapq30.removedups.proper_paired.deeptools.", chrom, ".bin100.bedgraph"), "", bg_file)
+    sample_name = gsub(paste0(".deeptools.", chrom, ".bin100.bedgraph"), "", bg_file)
+    
     print(sample_name)
     sample_names = c(sample_names, sample_name)
   

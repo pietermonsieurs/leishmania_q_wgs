@@ -31,9 +31,6 @@ breaks = c(0,.66,1.33,2.00)
 # ---- 1.1 input data ----
 ## do raw analysis on the genotype as predicted in the .vcf file obtained from
 ## GATK analsysi
-gt <- extract.gt(vcf, element = "GT")
-head(gt)
-
 
 ## use vcfR to read data
 vcf <- read.vcfR(vcf_file, verbose = TRUE)
@@ -83,7 +80,8 @@ gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select 
 gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select == 2) == 42),]
 # gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(is.na(gt_matrix_sub)) == 30),]
 
-## add annotation data for heatmap
+## add annotation data for heatmap, and optionally remove the Yeti strains, as 
+## they contribute a lot to the differences we see in the heatmap
 annotation_data = data.frame(strain = meta_data$strain, PAT = meta_data$PAT)
 annotation_data = annotation_data[-grep("BPK026", annotation_data$strain),]
 annotation_data = annotation_data[-grep("BPK031", annotation_data$strain),]
@@ -123,21 +121,8 @@ table(ann_data[,5])
 ## "stop_gained") or remove the one with a non-harmful deletion (e.g. 
 ## "downstream_gene_variant", "synonymous_variant", "upstream_gene_variant")
 variants_omit = c("downstream_gene_variant", "synonymous_variant", "upstream_gene_variant", "intergenic_region")
-# mutation_impact = ann_data[,2] %in% variants_omit
-# vcf_impact = vcf[-mutation_impact,]
 vcf_impact = vcf[! ann_data[,2] %in% variants_omit, ]
 
-
-# 
-# if (type == 'snp') {
-#   variants_select = c("missense_variant", "stop_gained")
-#   mutation_impact = ann_data[,2] %in% variants_select
-# }else if (type == 'indel') {
-#   variants_select = c("conservative_inframe_deletion", "frameshift_variant")
-#   mutation_impact = ann_data[,2] %in% variants_select
-# }
-#   
-# vcf_impact = vcf[mutation_impact,]
 
 
 info_data_genename = INFO2df(vcf_impact)
@@ -169,11 +154,10 @@ colnames(gt_impact_matrix) = new_col_names
 head(gt_matrix)
 
 
-## clean up the gt matrix and remove all SNPs where the sum over the different
-## samples is 6 (sample 001, 002, 003, 019, 020 and 021). This is BPK026 before
-## and after PAT, and contains a very high amount of SNPs compared to the other 
-## strains (BPK026 = Yeti, other = ISC core group)
-# gt_matrix_sub = gt_impact_matrix[- which(rowSums(gt_impact_matrix == 2, na.rm=TRUE) == 6),]
+## the gt_matrix_sub is coming from a previous implementation, but is not 
+## relevant anymore now (was used to filter out BPK026 Yeti specific SNPs in 
+## the first batch of data, but now all analyses are performed separately 
+## for Yeti and non-Yeti). 
 gt_matrix_sub = gt_impact_matrix
 
 ## put all NA values to zero. this might work for most SNPs but is also kind of
@@ -183,6 +167,15 @@ gt_matrix_sub[is.na(gt_matrix_sub)] = 0
 
 
 #### 1.2.1 >> Figure 04A_SNP map - for core strains ####
+
+## run the code below, as it is important that gt_matrix_sub = gt_impact_matrix
+## line is executed. This ensures that ony SNPs with impact on the gene are 
+## taken into account. Or, if needed to have all SNPs, set it to gt_matrix
+gt_matrix_sub = gt_impact_matrix
+gt_matrix_sub = gt_matrix
+
+gt_matrix_sub[is.na(gt_matrix_sub)] = 0
+
 
 ## remove samples 001,002 etc.
 # gt_matrix_sub_select = gt_matrix_sub[, - which(colnames(gt_matrix_sub) %in% c('001', '002', '003', '019', '020', '021'))]
@@ -223,6 +216,102 @@ ggsave(filename = png_file,
        plot = p_snpmap_core,
        width = 16,
        height = 9)
+
+
+## find the number of SNPs that are present in the PAT strains but not in the 
+## control strains. First select the column names with PAT or control, then 
+## select those SNPs with homozyogte reference in the control, and check for 
+## those SNPs PAT conditions
+columns_no_PAT = grep("no_PAT", colnames(gt_matrix_sub_select), value = TRUE)
+columns_PAT = grep("no_PAT", colnames(gt_matrix_sub_select), value = TRUE, invert = TRUE)
+
+## option 1: select only those SNPs that do not show any change in the no PAT strains
+gt_matrix_PAT = gt_matrix_sub_select[which(rowSums(gt_matrix_sub_select[, columns_no_PAT] == 0) >= 15),]
+
+## add annotation data for heatmap
+annotation_data = data.frame(strain = meta_data$strain, PAT = meta_data$PAT)
+annotation_data = annotation_data[-grep("BPK026", annotation_data$strain),]
+annotation_data = annotation_data[-grep("BPK031", annotation_data$strain),]
+annotation_data = annotation_data[-grep("BPK156", annotation_data$strain),]
+rownames(annotation_data) = colnames(gt_matrix_sub_select)
+
+p_pat = pheatmap(gt_matrix_PAT,
+                         fontsize_row = 6,
+                         show_rownames = TRUE,
+                         cluster_cols = TRUE,
+                         color = snp_colors,
+                         breaks = breaks, 
+                         treeheight_row = FALSE,
+                         annotation_col = annotation_data)
+
+rownames(gt_matrix_PAT)[which(rowSums(gt_matrix_PAT[, columns_PAT] > 0) >= 8)]
+
+meta_data_sorted = meta_data[match(colnames(gt_matrix), meta_data$sample_name),]
+annotation_data = data.frame(strain = meta_data_sorted$strain, PAT = meta_data_sorted$PAT)
+# annotation_data = annotation_data[-grep("BPK026", annotation_data$strain),]
+rownames(annotation_data) = colnames(gt_matrix)
+
+
+p_heatmaps_snps = list()
+full_snp_list = c()
+
+for (strain in strains) {
+  
+  print(strain)
+  
+  gt_matrix_strain = gt_matrix[,grep(strain, colnames(gt_matrix))]
+  # gt_matrix_strain = gt_matrix_strain[- which(rowSums(gt_matrix_strain == 2, na.rm=TRUE) == 6),]
+  gt_matrix_strain[is.na(gt_matrix_strain)] = 0
+  gt_matrix_strain_cleaned <- gt_matrix_strain[!apply(gt_matrix_strain, 1, function(row) length(unique(row)) == 1), ]
+  dim(gt_matrix_strain_cleaned)
+  colnames(gt_matrix_strain_cleaned)
+  
+  ## filter out those SNPs which are homozygote ref SNPs in no_PAT strains, so should
+  ## be 0 for all no PAT samples, and rowSums should be 3
+  gt_matrix_strain_cleaned = gt_matrix_strain_cleaned[rowSums(gt_matrix_strain_cleaned[,grep("no_PAT", colnames(gt_matrix_strain_cleaned))] == 0) == 3,]
+  dim(gt_matrix_strain_cleaned)
+  
+  ## check the number of SNPs that is present in at least 2 out of 3 replicates, or 
+  ## start with doing this for all 3 replicates (they did not initially as the only
+  ## focus was on CDS regions with impact)
+  # gt_matrix_strain_cleaned = 
+  print(nrow(gt_matrix_strain_cleaned[rowSums(gt_matrix_strain_cleaned[,grep("no_PAT", colnames(gt_matrix_strain_cleaned), invert = TRUE)] > 0) == 3,]))
+  # gt_matrix_strain_cleaned = gt_matrix_strain_cleaned[rowSums(gt_matrix_strain_cleaned[,grep("no_PAT", colnames(gt_matrix_strain_cleaned), invert = TRUE)] > 0) == 3,]
+  gt_matrix_strain_cleaned = gt_matrix_strain_cleaned[
+    rowSums(gt_matrix_strain_cleaned[, grep("no_PAT", colnames(gt_matrix_strain_cleaned), invert = TRUE)] > 0) >= 3,
+    ,
+    drop = FALSE
+  ]
+  print(nrow(gt_matrix_strain_cleaned))
+  
+  full_snp_list = c(full_snp_list, rownames(gt_matrix_strain_cleaned))
+  
+  if (nrow(gt_matrix_strain_cleaned) > 0) {
+    p_snp = pheatmap(gt_matrix_strain_cleaned,
+                        fontsize_row = 6,
+                        show_rownames = TRUE,
+                        cluster_cols = FALSE,
+                        cluster_rows = FALSE,
+                        color = snp_colors,
+                        breaks = breaks, 
+                        treeheight_row = FALSE,
+                        treeheight_col = FALSE,
+                        annotation_col = annotation_data)
+    p_heatmaps_snps[[strain]] = p_snp
+  }
+}
+
+grid.arrange(p_heatmaps_snps[["BPK026"]]$gtable, 
+             p_heatmaps_snps[["BPK031"]]$gtable, 
+             p_heatmaps_snps[["BPK156"]]$gtable, 
+             p_heatmaps_snps[["BPK275"]]$gtable, 
+             p_heatmaps_snps[["BPK080"]]$gtable, 
+             p_heatmaps_snps[["BPK085"]]$gtable, 
+             p_heatmaps_snps[["BPK282"]]$gtable, 
+             p_heatmaps_snps[["BPK294"]]$gtable, 
+             ncol = 3)
+
+as.data.frame(table(full_snp_list)[table(full_snp_list) > 1])
 
 
 #### 1.2.2 >> Figure 04A_SNP map - for YETI strains ####
@@ -369,6 +458,7 @@ grid.arrange(p_heatmaps[["BPK026"]]$gtable,
              p_heatmaps[["BPK294"]]$gtable, 
              ncol = 4)
 
+## this one with impact is used in the first submssion of the paper
 grid.arrange(p_heatmaps_impact[["BPK026"]]$gtable, 
              p_heatmaps_impact[["BPK031"]]$gtable, 
              p_heatmaps_impact[["BPK156"]]$gtable, 
@@ -379,6 +469,7 @@ grid.arrange(p_heatmaps_impact[["BPK026"]]$gtable,
              p_heatmaps_impact[["BPK294"]]$gtable, 
              ncol = 4)
 
+## heatmaps where the SNP is at least one time found as a homozygote SNP
 grid.arrange(p_heatmaps_impact_homo[["BPK026"]]$gtable,
              p_heatmaps_impact_homo[["BPK031"]]$gtable,
              p_heatmaps_impact_homo[["BPK156"]]$gtable,
@@ -390,6 +481,10 @@ grid.arrange(p_heatmaps_impact_homo[["BPK026"]]$gtable,
              ncol = 4)
 
 p_heatmaps[['BPK026']]
+
+
+
+
 
 
 ## overlap of SNPs between different strains
