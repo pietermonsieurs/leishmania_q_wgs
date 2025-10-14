@@ -246,12 +246,22 @@ p_pat = pheatmap(gt_matrix_PAT,
 
 rownames(gt_matrix_PAT)[which(rowSums(gt_matrix_PAT[, columns_PAT] > 0) >= 8)]
 
+
+## check for SNPs withine one strain. The idea is to look for SNPs that
+## are absent in the non-PAT strains, but are present in either 2 or 3 strains
+## in the PAT exposed strains. After making figures, one can also test whether
+## the same SNP is popping up for different strains. 
+
+
+## read in metadata for side column in the heatmap
 meta_data_sorted = meta_data[match(colnames(gt_matrix), meta_data$sample_name),]
 annotation_data = data.frame(strain = meta_data_sorted$strain, PAT = meta_data_sorted$PAT)
 # annotation_data = annotation_data[-grep("BPK026", annotation_data$strain),]
 rownames(annotation_data) = colnames(gt_matrix)
 
 
+## intitial list for storing heatmaps and vector for storing the list of 
+## SNPs, on which you can calculate the overlap
 p_heatmaps_snps = list()
 full_snp_list = c()
 
@@ -273,10 +283,9 @@ for (strain in strains) {
   
   ## check the number of SNPs that is present in at least 2 out of 3 replicates, or 
   ## start with doing this for all 3 replicates (they did not initially as the only
-  ## focus was on CDS regions with impact)
-  # gt_matrix_strain_cleaned = 
+  ## focus was on CDS regions with impact). The "drop=FALSE" is needed to prevent
+  ## errors when there is only one row left in the dataframe
   print(nrow(gt_matrix_strain_cleaned[rowSums(gt_matrix_strain_cleaned[,grep("no_PAT", colnames(gt_matrix_strain_cleaned), invert = TRUE)] > 0) == 3,]))
-  # gt_matrix_strain_cleaned = gt_matrix_strain_cleaned[rowSums(gt_matrix_strain_cleaned[,grep("no_PAT", colnames(gt_matrix_strain_cleaned), invert = TRUE)] > 0) == 3,]
   gt_matrix_strain_cleaned = gt_matrix_strain_cleaned[
     rowSums(gt_matrix_strain_cleaned[, grep("no_PAT", colnames(gt_matrix_strain_cleaned), invert = TRUE)] > 0) >= 3,
     ,
@@ -311,6 +320,8 @@ grid.arrange(p_heatmaps_snps[["BPK026"]]$gtable,
              p_heatmaps_snps[["BPK294"]]$gtable, 
              ncol = 3)
 
+## create an overview of those SNPs that are present in the different strains
+## for multiple times
 as.data.frame(table(full_snp_list)[table(full_snp_list) > 1])
 
 
@@ -487,9 +498,9 @@ p_heatmaps[['BPK026']]
 
 
 
-## overlap of SNPs between different strains
+## overlap of SNPs between different strains.
 
-## intialize empty dataframe
+## intialize empty dataframe. This 
 p_overlap = list()
 
 for (strain in strains) {
