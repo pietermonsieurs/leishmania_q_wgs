@@ -64,4 +64,4 @@ $bamcoverage_bin \
 # vi bam_files.csv ## add header "bam_file"
 # echo $PWD/bam_files.csv
 # module load atools
-# for chrom in Ld08 Ld10 Ld23 Ld36; do sbatch --array $(arange --no_sniffer --data /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/results/bwa/bam_files_raw.csv) --export=chrom=${chrom} /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/bin/somy_deeptools_hlocus.slurm; done
+# for chrom in Ld08 Ld10 Ld23 Ld27 Ld35 Ld36; do sbatch --array $(arange --no_sniffer --data /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/results/bwa/bam_files_raw.csv) --export=chrom=${chrom} /user/antwerpen/205/vsc20587/scratch/leishmania_q_wgs/bin/somy_deeptools_hlocus.slurm; done

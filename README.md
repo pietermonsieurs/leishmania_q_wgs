@@ -18,6 +18,9 @@
         * this is based on a prior comparison where reciprokal best blast hits are found between Lbraz and Ldon
     * [GATK_snpeff.sh](GATK_snpeff.sh)
     * visualization of the SNPs: [GATK_visualize_variants.R](GATK_visualize_variants.R)
+        * goes further than only visualisation of the SNPs: also statistics where the SNPs which are present in 2 out the 3 PAT exposed straind are present, but all absent in the control group. 
+        * first analyis with 2 out of three strains was only including core group. Later extended to also include the Yeti strains (BPK026, BPK031, BPK156)
+        * all output is written to an excel file with different tabs
 
 ## somy detection
 * run deeptools on all bam files; [somy_deeptools.slurm](somy_deeptools.slurm)

@@ -13,9 +13,6 @@ bg_files <- bg_files[! grepl ("mapq30", bg_files)]
 bg_files
 
 
-## parameter settings
-p_combined = plot_layout(ncol = 5)
-p_combined = plot_layout(ncol = 1)
 
 window_size = 25000
 

@@ -13,12 +13,58 @@ meta_data_file = '/Users/pmonsieurs/Library/CloudStorage/OneDrive-ITG/leishmania
 src_dir = '/Users/pmonsieurs/programming/leishmania_q_wgs/results/bwa/'
 setwd(src_dir)
 out_dir = '/Users/pmonsieurs/programming/leishmania_q_wgs/docs/figures/draft_nov2024/'
-
+gff_file = '/Users/pmonsieurs/programming/leishmania_q_wgs/data/Leishmania_donovani_16Nov2015beta.gff3'
 
 vcf_file = 'combined.filtered.vcf.gz'
 vcf_file = 'combined.filtered.snpeff.vcf'
+vcf_file = 'combined.filtered.snpeff.renamed.vcf.gz'
 
 
+## read in the gff file
+gff = read.csv(gff_file, sep="\t", comment.char="#", header=FALSE)
+unique(gff$V3)
+colnames(gff)
+
+## extract the function of a gene
+# gff_function = gff[gff$V3 == "protein_coding_gene",]
+gff_function = gff
+gff_function$description = ""
+gff_function$name = ""
+gff_function$gene_id = ""
+
+for (i in 1:nrow(gff_function)) {
+  field9 = str_split_fixed(gff_function[i,9], ";",n=Inf)
+  gff_function$gene_id[i] = gsub("ID=", "", field9[1])
+  gene_type = str_split_fixed(field9[4], ":", n=Inf)[2]
+  if (is.na(gene_type)) {
+    gene_type = str_split_fixed(field9[3], ":", n=Inf)[2]
+  }
+  
+  gff_function$gene_type[i] = gene_type
+  
+  for (j in 1:length(field9)) {
+    print(field9[j])
+    if(grepl("product=", field9[j])) {
+      print(field9)
+      description = gsub("product=", "", field9[j])
+      description = gsub("term=", "", description)
+      
+      print(description)
+      gff_function$description[i] = description
+    }
+    
+    if(grepl("Name=", field9[j])) {
+      name = gsub("Name=", "", field9[j])
+      gff_function$name[i] = name
+    }
+  }
+  
+}
+head(gff_function)
+
+gff_function = gff_function[,c(1,3,4,5,7,10,11,12,13)]
+colnames(gff_function)[1:5] = c("chrom", "feature", "start", "stop", "strand")
+head(gff_function)
 
 
 
@@ -56,28 +102,28 @@ meta_data$sample_name = paste0(meta_data$strain, "_", meta_data$PAT, "_", meta_d
 
 ## mapping of sample names to biologically interpretable names accoring to meta
 ## data supplied by Allison
-new_col_names = meta_data[match(colnames(gt_matrix), meta_data$ID_code_short),]$sample_name
-colnames(gt_matrix) = new_col_names
+# new_col_names = meta_data[match(colnames(gt_matrix), meta_data$ID_code_short),]$sample_name
+# colnames(gt_matrix) = new_col_names
 head(gt_matrix)
 
 ## clean up the gt matrix and remove all SNPs where the sum over the different
 ## samples is 6 (sample 001, 002, 003, 019, 020 and 021). This is BPK026 before
 ## and after PAT, and contains a very high amount of SNPs compared to the other 
 ## strains (BPK026 = Yeti, other = ISC core group)
-gt_matrix_sub = gt_matrix[- which(rowSums(gt_matrix == 2, na.rm=TRUE) == 6),]
-
+# gt_matrix_sub = gt_matrix[- which(rowSums(gt_matrix == 2, na.rm=TRUE) == 6),]
+gt_matrix_sub = gt_matrix
 gt_matrix_sub[is.na(gt_matrix_sub)] = 0
 
 ## remove the Yeti strains as they contribute with too many SNPs 
 ## making it impossible to create a heatmap
 gt_matrix_sub_select = gt_matrix_sub[, - grep("BPK026", colnames(gt_matrix_sub))]
-gt_matrix_sub_select = gt_matrix_sub[, - grep("BPK031", colnames(gt_matrix_sub))]
-gt_matrix_sub_select = gt_matrix_sub[, - grep("BPK156", colnames(gt_matrix_sub))]
+gt_matrix_sub_select = gt_matrix_sub_select[, - grep("BPK031", colnames(gt_matrix_sub_select))]
+gt_matrix_sub_select = gt_matrix_sub_select[, - grep("BPK156", colnames(gt_matrix_sub_select))]
 
 
-gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select == 0) == 42),]
-gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select == 1) == 42),]
-gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select == 2) == 42),]
+gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select == 0) == 30),]
+gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select == 1) == 30),]
+gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(gt_matrix_sub_select == 2) == 30),]
 # gt_matrix_sub_select = gt_matrix_sub_select[-which(rowSums(is.na(gt_matrix_sub)) == 30),]
 
 ## add annotation data for heatmap, and optionally remove the Yeti strains, as 
@@ -167,6 +213,7 @@ gt_matrix_sub[is.na(gt_matrix_sub)] = 0
 
 
 #### 1.2.1 >> Figure 04A_SNP map - for core strains ####
+## is now a supplementary figure
 
 ## run the code below, as it is important that gt_matrix_sub = gt_impact_matrix
 ## line is executed. This ensures that ony SNPs with impact on the gene are 
@@ -326,6 +373,7 @@ as.data.frame(table(full_snp_list)[table(full_snp_list) > 1])
 
 
 #### 1.2.2 >> Figure 04A_SNP map - for YETI strains ####
+## is now a supplementary figure
 
 ## remove samples 001,002 etc.
 # gt_matrix_sub_select = gt_matrix_sub[, - which(colnames(gt_matrix_sub) %in% c('001', '002', '003', '019', '020', '021'))]
@@ -498,7 +546,10 @@ p_heatmaps[['BPK026']]
 
 
 
-## overlap of SNPs between different strains.
+
+
+
+#### 1.5 overlap of SNPs between different strains ####
 
 ## intialize empty dataframe. This 
 p_overlap = list()
@@ -563,15 +614,24 @@ grid.arrange(p_overlap[["BPK026"]]$gtable,
 
 #### 2. summarise SNPs per gene ####
 
-# ---- 2.1 check gene information ---- #
+
+# ---- 2.1 startin from impact matrix ---- 
 head(gt_impact_matrix)
 head(ann_data_genename)
 dim(gt_impact_matrix)
 dim(ann_data_genename)
 rownames(ann_data_genename)
 
+## same but now for the matrix irrespective of the impact
+head(gt_matrix_sub)
+head(ann_data_genename)
+dim(gt_matrix_sub)
+dim(ann_data_genename)
+rownames(ann_data_genename)
+
+
 ## make a copy of gt_impact_matrix
-gt_impact_matrix_copy = gt_impact_matrix
+gt_impact_matrix_copy = gt_matrix_sub
 gt_impact_matrix_copy <- as.data.frame(gt_impact_matrix_copy)
 gene_names = ann_data_genename[match(rownames(gt_impact_matrix_copy), rownames(ann_data_genename)),5]
 gt_impact_matrix_copy$gene = unlist(gene_names, use.names = FALSE)
@@ -647,6 +707,358 @@ pheatmap(gt_impact_matrix_gene_yeti_clean,
          annotation_col = annotation_data)
 
 
+# ---- 2.2 starting from full matrix ---- 
+dim(gt_matrix)
+
+## in first instance, only focus on the non-yeti strains
+gt_matrix_sub = gt_matrix[, - grep("BPK026", colnames(gt_matrix))]
+gt_matrix_sub = gt_matrix_sub[, - grep("BPK031", colnames(gt_matrix_sub))]
+gt_matrix_sub = gt_matrix_sub[, - grep("BPK156", colnames(gt_matrix_sub))]
+dim(gt_matrix_sub)
+
+gt_matrix_sub = gt_matrix_sub[-which(rowSums(gt_matrix_sub == 0) == 30),]
+gt_matrix_sub = gt_matrix_sub[-which(rowSums(gt_matrix_sub == 1) == 30),]
+gt_matrix_sub = gt_matrix_sub[-which(rowSums(gt_matrix_sub == 2) == 30),]
+dim(gt_matrix_sub)
+
+
+## add annotation data for heatmap
+annotation_data = data.frame(strain = meta_data$strain, PAT = meta_data$PAT)
+annotation_data = annotation_data[-grep("BPK026", annotation_data$strain),]
+annotation_data = annotation_data[-grep("BPK031", annotation_data$strain),]
+annotation_data = annotation_data[-grep("BPK156", annotation_data$strain),]
+
+rownames(annotation_data) = colnames(gt_matrix_sub_select)
+
+# ---- 2.2.1 three out of three per strain ----
+
+strains = unique(meta_data$strain)
+# strains = strains[! strains %in% c("BPK026", "BPK031", "BPK156")]
+
+snp_three_out_of_three = data.frame()
+for (strain in strains) {
+  head(gt_matrix_sub)
+  
+  ## analysis for all SNPs combined - filter out those SNPs that are the same
+  ## for all 6 samples
+  gt_matrix_strain = gt_matrix_sub[,grep(strain, colnames(gt_matrix_sub))]
+  gt_matrix_strain[is.na(gt_matrix_strain)] = 0
+  gt_matrix_strain_cleaned <- gt_matrix_strain[!apply(gt_matrix_strain, 1, function(row) length(unique(row)) == 1), ]
+  dim(gt_matrix_strain_cleaned)
+
+  ## only select those SNPs that all 0 in the controls (no_PAT columns)
+  gt_matrix_strain_cleaned = gt_matrix_strain_cleaned[
+    rowSums(gt_matrix_strain_cleaned[, grep("no_PAT", colnames(gt_matrix_strain_cleaned))] == 0) == 3,
+    ,
+    drop = FALSE
+  ]
+  dim(gt_matrix_strain_cleaned)
+  
+  ## only select those SNPs that are > 0 in the PAT exposed
+  gt_matrix_strain_cleaned = gt_matrix_strain_cleaned[
+    rowSums(gt_matrix_strain_cleaned[, grep("no_PAT", colnames(gt_matrix_strain_cleaned), invert = TRUE)] > 0) == 3,
+    ,
+    drop = FALSE
+  ]
+  dim(gt_matrix_strain_cleaned)
+  
+  ## extract the chromosome and position from the rownames of the data frame
+  gt_matrix_strain_cleaned = as.data.frame(gt_matrix_strain_cleaned)
+  gt_matrix_strain_cleaned$chrom <- sub("_.*", "", rownames(gt_matrix_strain_cleaned))
+  gt_matrix_strain_cleaned$pos <- as.integer(sub(".*_", "", rownames(gt_matrix_strain_cleaned)))
+  
+  ## check the overlapping gene for SNP
+  for (i in 1:nrow(gt_matrix_strain_cleaned)) {
+    
+    position = gt_matrix_strain_cleaned[i,]$pos
+    chrom = gt_matrix_strain_cleaned[i,]$chrom
+    
+    ## check if SNP is inside CDS region
+    idx = which(gff_function$chrom == chrom & 
+                gff_function$start <= position & 
+                gff_function$stop >= position)
+    if (length(idx) > 0) {
+      row = as.vector(unlist(gt_matrix_strain_cleaned[i,]))
+      row = c(row, gff_function[idx,]$gene_id, gff_function[idx,]$name, gff_function[idx,]$description, strain,'cds')
+      snp_three_out_of_three = rbind.data.frame(snp_three_out_of_three, row)
+    }else{
+      gff_up = gff_function[gff_function$chrom == chrom & gff_function$start < position,]
+      gene_up = gff_up[order(gff_up$start, decreasing = TRUE)[1],]$gene_id
+      
+      gff_down = gff_function[gff_function$chrom == chrom & gff_function$stop > position,]
+      gene_down = gff_down[order(gff_down$start, decreasing = FALSE)[1],]$gene_id
+      
+      gene = paste0(gene_up, "::", gene_down)
+      
+      row = as.vector(unlist(gt_matrix_strain_cleaned[i,]))
+      row = c(row, gene, "", "", strain,'intergenic')
+      snp_three_out_of_three = rbind.data.frame(snp_three_out_of_three, row)
+      
+    }
+  }
+
+}
+
+colnames1_3 = paste0("no_PAT_rep", seq(1,3))
+colnames4_6 = paste0("PAT_rep", seq(1,3))
+colnames(snp_three_out_of_three) = c(colnames1_3, colnames4_6, 'chrom', 'pos', 'gene_id', 'gene_name', 'function', 'strain', 'type')
+dim(snp_three_out_of_three)
+
+
+# ---- 2.2.2 two out of three per strain ----
+gt_matrix_sub = gt_matrix
+strains = unique(meta_data$strain)
+# strains = strains[! strains %in% c("BPK026", "BPK031", "BPK156")]
+
+snp_two_out_of_three = data.frame()
+for (strain in strains) {
+  head(gt_matrix_sub)
+  
+  ## analysis for all SNPs combined - filter out those SNPs that are the same
+  ## for all 6 samples
+  gt_matrix_strain = gt_matrix_sub[,grep(strain, colnames(gt_matrix_sub))]
+  gt_matrix_strain[is.na(gt_matrix_strain)] = 0
+  gt_matrix_strain_cleaned <- gt_matrix_strain[!apply(gt_matrix_strain, 1, function(row) length(unique(row)) == 1), ]
+  dim(gt_matrix_strain_cleaned)
+  
+  ## only select those SNPs that all 0 in the controls (no_PAT columns)
+  gt_matrix_strain_cleaned = gt_matrix_strain_cleaned[
+    rowSums(gt_matrix_strain_cleaned[, grep("no_PAT", colnames(gt_matrix_strain_cleaned))] == 0) == 3,
+    ,
+    drop = FALSE
+  ]
+  dim(gt_matrix_strain_cleaned)
+  
+  ## only select those SNPs that are > 0 in the PAT exposed
+  gt_matrix_strain_cleaned = gt_matrix_strain_cleaned[
+    rowSums(gt_matrix_strain_cleaned[, grep("no_PAT", colnames(gt_matrix_strain_cleaned), invert = TRUE)] > 0) >= 2,
+    ,
+    drop = FALSE
+  ]
+  dim(gt_matrix_strain_cleaned)
+  
+  ## extract the chromosome and position from the rownames of the data frame
+  gt_matrix_strain_cleaned = as.data.frame(gt_matrix_strain_cleaned)
+  gt_matrix_strain_cleaned$chrom <- sub("_.*", "", rownames(gt_matrix_strain_cleaned))
+  gt_matrix_strain_cleaned$pos <- as.integer(sub(".*_", "", rownames(gt_matrix_strain_cleaned)))
+  
+  ## check the overlapping gene for SNP
+  for (i in 1:nrow(gt_matrix_strain_cleaned)) {
+    
+    position = gt_matrix_strain_cleaned[i,]$pos
+    chrom = gt_matrix_strain_cleaned[i,]$chrom
+    
+    ## check if SNP is inside CDS region
+    idx = which(gff_function$chrom == chrom & 
+                  gff_function$start <= position & 
+                  gff_function$stop >= position)
+    if (length(idx) > 0) {
+      row = as.vector(unlist(gt_matrix_strain_cleaned[i,]))
+      row = c(row, gff_function[idx,]$gene_id, gff_function[idx,]$name, gff_function[idx,]$description, strain,'cds')
+      snp_two_out_of_three = rbind.data.frame(snp_two_out_of_three, row)
+    }else{
+      gff_up = gff_function[gff_function$chrom == chrom & gff_function$start < position,]
+      gene_up = gff_up[order(gff_up$start, decreasing = TRUE)[1],]$gene_id
+      
+      gff_down = gff_function[gff_function$chrom == chrom & gff_function$stop > position,]
+      gene_down = gff_down[order(gff_down$start, decreasing = FALSE)[1],]$gene_id
+      
+      gene = paste0(gene_up, "::", gene_down)
+      
+      row = as.vector(unlist(gt_matrix_strain_cleaned[i,]))
+      row = c(row, gene, "", "", strain,'intergenic')
+      snp_two_out_of_three = rbind.data.frame(snp_two_out_of_three, row)
+      
+    }
+  }
+  
+}
+
+colnames1_3 = paste0("no_PAT_rep", seq(1,3))
+colnames4_6 = paste0("PAT_rep", seq(1,3))
+colnames(snp_two_out_of_three) = c(colnames1_3, colnames4_6, 'chrom', 'pos', 'gene_id', 'gene_name', 'function', 'strain', 'type')
+dim(snp_two_out_of_three)
+
+
+# ---- 2.2.3 eight out of 15 overall PAT ----
+
+strains = unique(meta_data$strain)
+strains = strains[! strains %in% c("BPK026", "BPK031", "BPK156")]
+
+snp_out_of_15 = data.frame()
+col_index = c(grep("BPK026", colnames(gt_matrix)),
+              grep("BPK031", colnames(gt_matrix)),
+              grep("BPK156", colnames(gt_matrix)))
+col_index 
+gt_matrix_sub = gt_matrix[, -col_index]
+dim(gt_matrix_sub)
+
+gt_matrix_cleaned <- gt_matrix_sub[!apply(gt_matrix_sub, 1, function(row) length(unique(row)) == 1), ]
+gt_matrix_cleaned[is.na(gt_matrix_cleaned)] = 0
+dim(gt_matrix_cleaned)
+  
+## only select those SNPs that all 0 in the controls (no_PAT columns)
+gt_matrix_cleaned = gt_matrix_cleaned[
+  rowSums(gt_matrix_cleaned[, grep("no_PAT", colnames(gt_matrix_cleaned))] == 0) == 15,
+  ,
+  drop = FALSE
+]
+dim(gt_matrix_cleaned)
+  
+## only select those SNPs that are > 0 in the PAT exposed
+gt_matrix_cleaned = gt_matrix_cleaned[
+  rowSums(gt_matrix_cleaned[, grep("no_PAT", colnames(gt_matrix_cleaned), invert = TRUE)] > 0) >= 2,
+  ,
+  drop = FALSE
+]
+dim(gt_matrix_cleaned)
+
+## extract the chromosome and position from the rownames of the data frame
+gt_matrix_cleaned = as.data.frame(gt_matrix_cleaned)
+gt_matrix_cleaned$chrom <- sub("_.*", "", rownames(gt_matrix_cleaned))
+gt_matrix_cleaned$pos <- as.integer(sub(".*_", "", rownames(gt_matrix_cleaned)))
+
+## check the overlapping gene for SNP
+for (i in 1:nrow(gt_matrix_cleaned)) {
+  
+  position = gt_matrix_cleaned[i,]$pos
+  chrom = gt_matrix_cleaned[i,]$chrom
+  
+  ## check if SNP is inside CDS region
+  idx = which(gff_function$chrom == chrom & 
+                gff_function$start <= position & 
+                gff_function$stop >= position)
+  if (length(idx) > 0) {
+    row = as.vector(unlist(gt_matrix_cleaned[i,]))
+    row = c(row, gff_function[idx,]$gene_id, gff_function[idx,]$name, gff_function[idx,]$description, strain,'cds')
+    snp_out_of_15 = rbind.data.frame(snp_out_of_15, row)
+  }else{
+    gff_up = gff_function[gff_function$chrom == chrom & gff_function$start < position,]
+    gene_up = gff_up[order(gff_up$start, decreasing = TRUE)[1],]$gene_id
+    
+    gff_down = gff_function[gff_function$chrom == chrom & gff_function$stop > position,]
+    gene_down = gff_down[order(gff_down$start, decreasing = FALSE)[1],]$gene_id
+    
+    gene = paste0(gene_up, "::", gene_down)
+    
+    row = as.vector(unlist(gt_matrix_cleaned[i,]))
+    row = c(row, gene, "", "", strain,'intergenic')
+    snp_out_of_15 = rbind.data.frame(snp_out_of_15, row)
+    
+  }
+}
+  
+
+
+colnames(snp_out_of_15) = c(colnames(gt_matrix_sub), 'chrom', 'pos', 'gene_id', 'gene_name', 'function', 'strain', 'type')
+
+
+wb <- createWorkbook()
+addWorksheet(wb, "three_out_of_three")
+writeData(wb, "three_out_of_three", snp_three_out_of_three)
+addWorksheet(wb, "two_out_of_three")
+writeData(wb, "two_out_of_three", snp_two_out_of_three)
+addWorksheet(wb, "snp_out_of_15")
+writeData(wb, "snp_out_of_15", snp_out_of_15)
+
+# Save to Excel file
+saveWorkbook(wb, "/Users/pmonsieurs/programming/leishmania_q_wgs/docs/snp_overlap.xlsx", overwrite = TRUE)
+
+
+
+# ---- 2.2.4 check for subset of genes in Yeti ----
+
+## check how the SNP analysis is done in the YETI strains. Specific focus on 
+## three genes which contain SNPs in the CDS or intergenic region in the core
+## strains
+genes_of_interest = c('LdBPK_220022700', 'LdBPK_220022800', 'LdBPK_220022700::LdBPK_220022800', 'LdBPK_350010100','LdBPK_350010400', 'LdBPK_350010600')
+
+strains = unique(meta_data$strain)
+strains = strains[strains %in% c("BPK026", "BPK031", "BPK156")]
+
+snp_gene_of_interest = data.frame()
+gt_matrix_sub = gt_matrix[, grep("BPK026|BPK031|BPK156", colnames(gt_matrix))]
+dim(gt_matrix_sub)
+head(gt_matrix_sub)
+
+gt_matrix_cleaned <- gt_matrix_sub[!apply(gt_matrix_sub, 1, function(row) length(unique(row)) == 1), ]
+gt_matrix_cleaned[is.na(gt_matrix_cleaned)] = 0
+dim(gt_matrix_cleaned)
+
+## only select those SNPs that all 0 in the controls (no_PAT columns)
+# gt_matrix_cleaned = gt_matrix_cleaned[
+#   rowSums(gt_matrix_cleaned[, grep("no_PAT", colnames(gt_matrix_cleaned))] == 0) == 15,
+#   ,
+#   drop = FALSE
+# ]
+# dim(gt_matrix_cleaned)
+
+## only select those SNPs that are > 0 in the PAT exposed
+# gt_matrix_cleaned = gt_matrix_cleaned[
+#   rowSums(gt_matrix_cleaned[, grep("no_PAT", colnames(gt_matrix_cleaned), invert = TRUE)] > 0) >= 2,
+#   ,
+#   drop = FALSE
+# ]
+# dim(gt_matrix_cleaned)
+
+## extract the chromosome and position from the rownames of the data frame
+gt_matrix_cleaned = as.data.frame(gt_matrix_cleaned)
+gt_matrix_cleaned$chrom <- sub("_.*", "", rownames(gt_matrix_cleaned))
+gt_matrix_cleaned$pos <- as.integer(sub(".*_", "", rownames(gt_matrix_cleaned)))
+
+## check the overlapping gene for SNP
+for (i in 1:nrow(gt_matrix_cleaned)) {
+  print(i)
+  
+  position = gt_matrix_cleaned[i,]$pos
+  chrom = gt_matrix_cleaned[i,]$chrom
+  
+  ## check if SNP is inside CDS region
+  idx = which(gff_function$chrom == chrom & 
+                gff_function$start <= position & 
+                gff_function$stop >= position)
+  if (length(idx) > 0) {
+    row = as.vector(unlist(gt_matrix_cleaned[i,]))
+    row = c(row, gff_function[idx,]$gene_id, gff_function[idx,]$name, gff_function[idx,]$description, strain,'cds')
+    snp_gene_of_interest = rbind.data.frame(snp_gene_of_interest, row)
+  }else{
+    gff_up = gff_function[gff_function$chrom == chrom & gff_function$start < position,]
+    gene_up = gff_up[order(gff_up$start, decreasing = TRUE)[1],]$gene_id
+    
+    gff_down = gff_function[gff_function$chrom == chrom & gff_function$stop > position,]
+    gene_down = gff_down[order(gff_down$start, decreasing = FALSE)[1],]$gene_id
+    
+    gene = paste0(gene_up, "::", gene_down)
+    
+    row = as.vector(unlist(gt_matrix_cleaned[i,]))
+    row = c(row, gene, "", "", strain,'intergenic')
+    snp_gene_of_interest = rbind.data.frame(snp_gene_of_interest, row)
+    
+  }
+}
+
+
+
+colnames(snp_gene_of_interest) = c(colnames(gt_matrix_sub), 'chrom', 'pos', 'gene_id', 'gene_name', 'function', 'strain', 'type')
+dim(snp_gene_of_interest)
+head(snp_gene_of_interest)
+## only select relevant snps
+snp_gene_of_interest = snp_gene_of_interest[snp_gene_of_interest$gene_id %in% genes_of_interest,]
+snp_gene_of_interest = snp_gene_of_interest[, - (length(colnames(snp_gene_of_interest)) - 1)] ## remove the strain column
+snp_gene_of_interest
+
+wb <- createWorkbook()
+addWorksheet(wb, "three_out_of_three")
+writeData(wb, "three_out_of_three", snp_three_out_of_three)
+addWorksheet(wb, "two_out_of_three")
+writeData(wb, "two_out_of_three", snp_two_out_of_three)
+addWorksheet(wb, "snp_out_of_15")
+writeData(wb, "snp_out_of_15", snp_out_of_15)
+addWorksheet(wb, "snps_in_yeti")
+writeData(wb, "snps_in_yeti", snp_gene_of_interest)
+
+# Save to Excel file
+saveWorkbook(wb, "/Users/pmonsieurs/programming/leishmania_q_wgs/docs/snp_overlap.xlsx", overwrite = TRUE)
 
 
 
