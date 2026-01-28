@@ -57,6 +57,9 @@ pheatmap(t(cnv_data_up[,5:ncol(cnv_data_up)]),
          treeheight_col = 0,
          breaks = breaks)
 
+## not sure here how cnv_data_relevant was created
+cnv_data_relevant = cnv_data
+
 ## same but only for Yeti
 col_index = c(grep("BPK026", colnames(cnv_data_relevant)),
               grep("BPK031", colnames(cnv_data_relevant)),
@@ -260,7 +263,7 @@ png_cnv_core = pheatmap(t(cnv_data_relevant[,5:ncol(cnv_data_relevant)]),
          breaks = breaks)
 png_cnv_core
 
-png_cnv_core_file = paste0(out_dir, 'fig_04B_CNV_corestrains.png')
+png_cnv_core_file = paste0(out_dir, 'fig_04B_CNV_corestrains.pdf')
 ggsave(filename = png_cnv_core_file,
        plot = png_cnv_core,
        width = 16,
@@ -291,7 +294,7 @@ png_cnv_yeti = pheatmap(t(cnv_data_relevant[,5:ncol(cnv_data_relevant)]),
                         breaks = breaks)
 png_cnv_yeti
 
-png_cnv_yeti_file = paste0(out_dir, 'fig_04B_CNV_yetistrains.png')
+png_cnv_yeti_file = paste0(out_dir, 'fig_04B_CNV_yetistrains.pdf')
 ggsave(filename = png_cnv_yeti_file,
        plot = png_cnv_yeti,
        width = 16,
