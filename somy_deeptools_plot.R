@@ -316,6 +316,10 @@ for (strain in strains) {
   
 }
 
+## export the somy_plot_df as input data for creating the heatmap to be put 
+## on zenodo
+write.csv(somy_plot_df, file = paste0(bwa_dir, 'Supp_Fig8.csv'))
+
 
 ## make a plot where the somy values per strains are plotted on a 
 ## line, with the PAT and no PAT plotted in different colors
@@ -504,4 +508,7 @@ ggsave(png_file, p, width=16, height = 9, dpi = 300 )
 # Export t_test_results to CSV if needed
 write.csv(t_test_results, "t_test_results_with_mean_diff.csv")
 
+## export plot_data as supporting data on zenodo
+csv_file_figure5 = paste0(bwa_dir, "Fig5_somy_data.csv")
+write.csv(plot_data, file = csv_file_figure5)
                                

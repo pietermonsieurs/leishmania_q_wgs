@@ -270,6 +270,10 @@ ggsave(filename = png_cnv_core_file,
        height = 9,
        dpi=300)
 
+## write csv file as data file for zenodo
+cvn_core_csv_file =  paste0(out_dir, 'Fig_04B_CNV_corestrains.csv')
+write.csv(cnv_data_relevant, file = cvn_core_csv_file)
+
 
 ## for YETI genes
 
@@ -301,6 +305,9 @@ ggsave(filename = png_cnv_yeti_file,
        height = 9,
        dpi = 300)
 
+## write csv file as data file for zenodo
+cvn_yeti_csv_file =  paste0(out_dir, 'Fig4A_CNV_Yetistrains.csv')
+write.csv(cnv_data_relevant, file = cvn_yeti_csv_file)
 
 ## make some kind of line plot, where one line is one gene, and the six values
 ## are plotted as dots on the line. Only do this for the significant ones but 
@@ -334,6 +341,9 @@ ggplot(plot_data_sign, aes(x = gene_id, y = cnv, group = strain)) +
   coord_flip() + 
   facet_wrap(~ strain, scales = c("free_x"), ncol=4)
 
+
+## write output to csv file for zenodo
+write.csv(cnv_data, file = paste0(out_dir, 'Supp_Fig7.csv'))
 
 
 ## focus on the region in the input CNV file with the rRNA region
