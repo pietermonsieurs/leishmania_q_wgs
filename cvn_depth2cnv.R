@@ -263,7 +263,7 @@ png_cnv_core = pheatmap(t(cnv_data_relevant[,5:ncol(cnv_data_relevant)]),
          breaks = breaks)
 png_cnv_core
 
-png_cnv_core_file = paste0(out_dir, 'fig_04B_CNV_corestrains.pdf')
+png_cnv_core_file = paste0(out_dir, 'fig_04B_CNV_corestrains.png')
 ggsave(filename = png_cnv_core_file,
        plot = png_cnv_core,
        width = 16,
@@ -298,7 +298,7 @@ png_cnv_yeti = pheatmap(t(cnv_data_relevant[,5:ncol(cnv_data_relevant)]),
                         breaks = breaks)
 png_cnv_yeti
 
-png_cnv_yeti_file = paste0(out_dir, 'fig_04B_CNV_yetistrains.pdf')
+png_cnv_yeti_file = paste0(out_dir, 'fig_04B_CNV_yetistrains.png')
 ggsave(filename = png_cnv_yeti_file,
        plot = png_cnv_yeti,
        width = 16,
